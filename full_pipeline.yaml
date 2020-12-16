@@ -1,0 +1,1251 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: ddareungi-
+  annotations: {pipelines.kubeflow.org/kfp_sdk_version: 1.0.0, pipelines.kubeflow.org/pipeline_compilation_time: '2020-12-08T17:26:15.131218',
+    pipelines.kubeflow.org/pipeline_spec: '{"description": "predict after 10 minutes",
+      "name": "ddareungi"}'}
+  labels: {pipelines.kubeflow.org/kfp_sdk_version: 1.0.0}
+spec:
+  entrypoint: ddareungi
+  templates:
+  - name: bike-len-op
+    container:
+      args: [--now, /tmp/inputs/now/data, --new, /tmp/inputs/new/data, --bike-len,
+        /tmp/outputs/bike_len/data]
+      command:
+      - python3
+      - -u
+      - -c
+      - "def _make_parent_dirs_and_return_path(file_path: str):\n    import os\n \
+        \   os.makedirs(os.path.dirname(file_path), exist_ok=True)\n    return file_path\n\
+        \ndef bike_len_op(now_path,\n                new_path,\n                bike_len_path):\n\
+        \    from haversine import haversine\n    import pandas as pd\n    import\
+        \ warnings\n    warnings.filterwarnings(action='ignore')\n    now_path = pd.read_csv(now_path)\n\
+        \    new_path = pd.read_csv(new_path)\n    def bike_shortest_length(new_df,all_df,lat,lng):\
+        \ \n        total_total_bike_length = pd.DataFrame()\n        for i in range(len(new_df)):\n\
+        \            length_list = []\n            for j in range(len(new_df)):\n\
+        \                if new_df.iloc[i,0]!=all_df.iloc[j,0]: \n               \
+        \     X = (new_df.iloc[i,lat],new_df.iloc[i,lng]) #(\uC704\uB3C4,\uACBD\uB3C4\
+        )\n                    Y = (all_df.iloc[j,lat],all_df.iloc[j,lng])\n     \
+        \               a = haversine(X, Y, unit = 'm')\n                    length_list.append(a)\n\
+        \                else:\n                    pass\n            shortest_length\
+        \ = sorted(length_list)[0]\n            total = pd.DataFrame({\"X\":[i],\"\
+        shortest_length\":[shortest_length]})\n            total_total_bike_length\
+        \ = total_total_bike_length.append(total)\n            bike_len = total_total_bike_length[['X','shortest_length']]\n\
+        \            bike_len.columns = ['\uB300\uC5EC\uC18C\uBC88\uD638','bike_shortest']\n\
+        \        return bike_len\n\n    def bike_to_shortest_length_all(new_df,b_lat,b_lng,another_df,a_lat,a_lng):\n\
+        \        total_total_length = pd.DataFrame()\n        for i in range(len(new_df)):\n\
+        \            length_list = []\n            for j in range(len(another_df)):\n\
+        \                X = (new_df.iloc[i,b_lat],new_df.iloc[i,b_lng])\n       \
+        \         Y = (another_df.iloc[j,a_lat],another_df.iloc[j,a_lng])\n      \
+        \          a = haversine(X, Y, unit = 'm')\n                length_list.append(a)\n\
+        \            shortest_length = sorted(length_list)[0]\n            total =\
+        \ pd.DataFrame({\"X\":[i],\"shortest_length\":[shortest_length]})\n      \
+        \      total_total_length = total_total_length.append(total)\n        return\
+        \ total_total_length\n\n    def df_concat(df,all_df,df_lat,df_lng):\n\n  \
+        \      bike_len = bike_shortest_length(df,all_df,df_lat,df_lng)\n\n      \
+        \  market = pd.read_csv('./\uC804\uD1B5\uC2DC\uC7A5\uC804\uCC98\uB9AC\uD6C4\
+        .csv')\n        market_len = bike_to_shortest_length_all(df,df_lat,df_lng,market,-1,-2)\n\
+        \        market_len.columns = ['X', 'market_shortest']\n\n        park = pd.read_csv('./\uACF5\
+        \uC6D0\uC804\uCC98\uB9AC\uD6C4.csv')\n        park_len = bike_to_shortest_length_all(df,df_lat,df_lng,park,4,5)\n\
+        \        park_len.columns = ['X', 'park_shortest']\n\n        subway = pd.read_csv('./\uC9C0\
+        \uD558\uCCA0\uC804\uCC98\uB9AC\uD6C4.csv')\n        subway_len = bike_to_shortest_length_all(df,df_lat,df_lng,subway,3,4)\n\
+        \        subway_len.columns = ['X', 'subway_shortest']\n\n        school =\
+        \ pd.read_csv('./\uC911\uACE0\uB4F1\uB300(\uC6D0).csv')\n        school_len\
+        \ = bike_to_shortest_length_all(df,df_lat,df_lng,school,-2,-1)\n        school_len.columns\
+        \ = ['X', 'school_shortest']\n\n        culture = pd.read_csv('./\uBB38\uD654\
+        \uACF5\uAC04\uC804\uCC98\uB9AC\uD6C4.csv')\n        culture_len = bike_to_shortest_length_all(df,df_lat,df_lng,culture,-2,-1)\n\
+        \        culture_len.columns = ['X', 'culture_shortest']\n\n        bus =\
+        \ pd.read_csv('./bus.csv')\n        bus_len = bike_to_shortest_length_all(df,df_lat,df_lng,bus,-1,-2)\n\
+        \        bus_len.columns = ['X', 'bus_shortest']\n\n        bike_len['park_shortest']\
+        \ = park_len['park_shortest']\n        bike_len['subway_shortest'] = subway_len[\"\
+        subway_shortest\"]\n        bike_len['school_shortest'] = school_len['school_shortest']\n\
+        \        bike_len['culture_shortest'] = culture_len['culture_shortest']\n\
+        \        bike_len['bus_shortest'] = bus_len['bus_shortest']\n        bike_len['market_shortest']\
+        \ = market_len['market_shortest']\n\n        return bike_len\n\n    bike_length\
+        \ = df_concat(new_path, now_path, 1, 2)\n    bike_length.reset_index(drop=True,inplace=True)\n\
+        \    bike_length.drop('\uB300\uC5EC\uC18C\uBC88\uD638',axis=1,inplace=True)\n\
+        \n    bike_length.to_csv(bike_len_path, index = False)\n\nimport argparse\n\
+        _parser = argparse.ArgumentParser(prog='Bike len op', description='')\n_parser.add_argument(\"\
+        --now\", dest=\"now_path\", type=str, required=True, default=argparse.SUPPRESS)\n\
+        _parser.add_argument(\"--new\", dest=\"new_path\", type=str, required=True,\
+        \ default=argparse.SUPPRESS)\n_parser.add_argument(\"--bike-len\", dest=\"\
+        bike_len_path\", type=_make_parent_dirs_and_return_path, required=True, default=argparse.SUPPRESS)\n\
+        _parsed_args = vars(_parser.parse_args())\n\n_outputs = bike_len_op(**_parsed_args)\n"
+      image: 941102633028.dkr.ecr.ap-northeast-2.amazonaws.com/6team:es_ko_KST_XGH
+    inputs:
+      artifacts:
+      - {name: check-diff-op-new, path: /tmp/inputs/new/data}
+      - {name: check-diff-op-now, path: /tmp/inputs/now/data}
+    outputs:
+      artifacts:
+      - {name: bike-len-op-bike_len, path: /tmp/outputs/bike_len/data}
+    metadata:
+      annotations: {pipelines.kubeflow.org/component_spec: '{"implementation": {"container":
+          {"args": ["--now", {"inputPath": "now"}, "--new", {"inputPath": "new"},
+          "--bike-len", {"outputPath": "bike_len"}], "command": ["python3", "-u",
+          "-c", "def _make_parent_dirs_and_return_path(file_path: str):\n    import
+          os\n    os.makedirs(os.path.dirname(file_path), exist_ok=True)\n    return
+          file_path\n\ndef bike_len_op(now_path,\n                new_path,\n                bike_len_path):\n    from
+          haversine import haversine\n    import pandas as pd\n    import warnings\n    warnings.filterwarnings(action=''ignore'')\n    now_path
+          = pd.read_csv(now_path)\n    new_path = pd.read_csv(new_path)\n    def bike_shortest_length(new_df,all_df,lat,lng):
+          \n        total_total_bike_length = pd.DataFrame()\n        for i in range(len(new_df)):\n            length_list
+          = []\n            for j in range(len(new_df)):\n                if new_df.iloc[i,0]!=all_df.iloc[j,0]:
+          \n                    X = (new_df.iloc[i,lat],new_df.iloc[i,lng]) #(\uc704\ub3c4,\uacbd\ub3c4)\n                    Y
+          = (all_df.iloc[j,lat],all_df.iloc[j,lng])\n                    a = haversine(X,
+          Y, unit = ''m'')\n                    length_list.append(a)\n                else:\n                    pass\n            shortest_length
+          = sorted(length_list)[0]\n            total = pd.DataFrame({\"X\":[i],\"shortest_length\":[shortest_length]})\n            total_total_bike_length
+          = total_total_bike_length.append(total)\n            bike_len = total_total_bike_length[[''X'',''shortest_length'']]\n            bike_len.columns
+          = [''\ub300\uc5ec\uc18c\ubc88\ud638'',''bike_shortest'']\n        return
+          bike_len\n\n    def bike_to_shortest_length_all(new_df,b_lat,b_lng,another_df,a_lat,a_lng):\n        total_total_length
+          = pd.DataFrame()\n        for i in range(len(new_df)):\n            length_list
+          = []\n            for j in range(len(another_df)):\n                X =
+          (new_df.iloc[i,b_lat],new_df.iloc[i,b_lng])\n                Y = (another_df.iloc[j,a_lat],another_df.iloc[j,a_lng])\n                a
+          = haversine(X, Y, unit = ''m'')\n                length_list.append(a)\n            shortest_length
+          = sorted(length_list)[0]\n            total = pd.DataFrame({\"X\":[i],\"shortest_length\":[shortest_length]})\n            total_total_length
+          = total_total_length.append(total)\n        return total_total_length\n\n    def
+          df_concat(df,all_df,df_lat,df_lng):\n\n        bike_len = bike_shortest_length(df,all_df,df_lat,df_lng)\n\n        market
+          = pd.read_csv(''./\uc804\ud1b5\uc2dc\uc7a5\uc804\ucc98\ub9ac\ud6c4.csv'')\n        market_len
+          = bike_to_shortest_length_all(df,df_lat,df_lng,market,-1,-2)\n        market_len.columns
+          = [''X'', ''market_shortest'']\n\n        park = pd.read_csv(''./\uacf5\uc6d0\uc804\ucc98\ub9ac\ud6c4.csv'')\n        park_len
+          = bike_to_shortest_length_all(df,df_lat,df_lng,park,4,5)\n        park_len.columns
+          = [''X'', ''park_shortest'']\n\n        subway = pd.read_csv(''./\uc9c0\ud558\ucca0\uc804\ucc98\ub9ac\ud6c4.csv'')\n        subway_len
+          = bike_to_shortest_length_all(df,df_lat,df_lng,subway,3,4)\n        subway_len.columns
+          = [''X'', ''subway_shortest'']\n\n        school = pd.read_csv(''./\uc911\uace0\ub4f1\ub300(\uc6d0).csv'')\n        school_len
+          = bike_to_shortest_length_all(df,df_lat,df_lng,school,-2,-1)\n        school_len.columns
+          = [''X'', ''school_shortest'']\n\n        culture = pd.read_csv(''./\ubb38\ud654\uacf5\uac04\uc804\ucc98\ub9ac\ud6c4.csv'')\n        culture_len
+          = bike_to_shortest_length_all(df,df_lat,df_lng,culture,-2,-1)\n        culture_len.columns
+          = [''X'', ''culture_shortest'']\n\n        bus = pd.read_csv(''./bus.csv'')\n        bus_len
+          = bike_to_shortest_length_all(df,df_lat,df_lng,bus,-1,-2)\n        bus_len.columns
+          = [''X'', ''bus_shortest'']\n\n        bike_len[''park_shortest''] = park_len[''park_shortest'']\n        bike_len[''subway_shortest'']
+          = subway_len[\"subway_shortest\"]\n        bike_len[''school_shortest'']
+          = school_len[''school_shortest'']\n        bike_len[''culture_shortest'']
+          = culture_len[''culture_shortest'']\n        bike_len[''bus_shortest'']
+          = bus_len[''bus_shortest'']\n        bike_len[''market_shortest''] = market_len[''market_shortest'']\n\n        return
+          bike_len\n\n    bike_length = df_concat(new_path, now_path, 1, 2)\n    bike_length.reset_index(drop=True,inplace=True)\n    bike_length.drop(''\ub300\uc5ec\uc18c\ubc88\ud638'',axis=1,inplace=True)\n\n    bike_length.to_csv(bike_len_path,
+          index = False)\n\nimport argparse\n_parser = argparse.ArgumentParser(prog=''Bike
+          len op'', description='''')\n_parser.add_argument(\"--now\", dest=\"now_path\",
+          type=str, required=True, default=argparse.SUPPRESS)\n_parser.add_argument(\"--new\",
+          dest=\"new_path\", type=str, required=True, default=argparse.SUPPRESS)\n_parser.add_argument(\"--bike-len\",
+          dest=\"bike_len_path\", type=_make_parent_dirs_and_return_path, required=True,
+          default=argparse.SUPPRESS)\n_parsed_args = vars(_parser.parse_args())\n\n_outputs
+          = bike_len_op(**_parsed_args)\n"], "image": "941102633028.dkr.ecr.ap-northeast-2.amazonaws.com/6team:es_ko_KST_XGH"}},
+          "inputs": [{"name": "now", "type": "csv"}, {"name": "new", "type": "csv"}],
+          "name": "Bike len op", "outputs": [{"name": "bike_len", "type": "csv"}]}',
+        pipelines.kubeflow.org/component_ref: '{}'}
+  - name: check-diff-op
+    container:
+      args: [--now, /tmp/outputs/now/data, --new, /tmp/outputs/new/data, '----output-paths',
+        /tmp/outputs/Output/data]
+      command:
+      - python3
+      - -u
+      - -c
+      - "def _make_parent_dirs_and_return_path(file_path: str):\n    import os\n \
+        \   os.makedirs(os.path.dirname(file_path), exist_ok=True)\n    return file_path\n\
+        \ndef check_diff_op(now_path, \n                  new_path):\n    import pandas\
+        \ as pd\n    from datetime import datetime, timedelta\n    from sqlalchemy\
+        \ import create_engine\n    import psycopg2\n    import requests\n    import\
+        \ warnings\n    warnings.filterwarnings(action='ignore')\n    base_df = pd.read_csv('./all_all.csv')\n\
+        \n    base_df.drop(['\uC77C\uC2DC','\uAC70\uCE58\uC728','\uAC70\uCE58\uB300\
+        \uC218','\uB300\uC5EC\uC18Cid','\uC8FC\uC18C','\uC794\uC5EC\uB300\uC218'],axis=1,inplace=True)\n\
+        \    base_df.reset_index(drop=True,inplace=True)\n\n    def get_addr(X, Y):\n\
+        \        apiKey='6D89790B-9BFE-36C5-8776-9C7DD60ACC62'\n        r =requests.get(f'http://apis.vworld.kr/coord2jibun.do?x={X}&y={Y}\\\
+        \n        &apiKey={apiKey}&domain=http://map.vworld.kr/&output=json')\n  \
+        \      location = r.json()\n        return location['ADDR']\n\n    def ready_for_preprocessing(Benchmark):\n\
+        \        now = datetime.now()\n        now_date = now.strftime('%Y-%m-%d')\n\
+        \        now_hour = now.hour\n        now_min = (now.minute // 10) * 10\n\
+        \        ago24 = now - timedelta(hours = 24)\n        ago48 = now - timedelta(hours\
+        \ = 48)\n        check_period = now_date + f' {now_hour}:{now_min}' \n   \
+        \     engine = create_engine(\"postgresql://postgres:6team123!@restored-aurora.cj92narf3bwn.ap-northeast-2.rds.amazonaws.com:5432/final_project\"\
+        )\n        Bike_api = pd.read_sql_query(f\"\"\"SELECT *\n        FROM bike\
+        \ WHERE \uC77C\uC2DC >= '{check_period}';\n        \"\"\", con=engine.connect())\n\
+        \        Bike_api = Bike_api[['\uB300\uC5EC\uC18C\uC774\uB984','\uC704\uB3C4\
+        ','\uACBD\uB3C4']].drop_duplicates('\uB300\uC5EC\uC18C\uC774\uB984')\n   \
+        \     Bike_api['\uB300\uC5EC\uC18C\uBC88\uD638'] = Bike_api['\uB300\uC5EC\uC18C\
+        \uC774\uB984'].apply(lambda x: x.split('.')[0]).astype('int32')\n        Benchmark_set\
+        \ = set(Benchmark['\uB300\uC5EC\uC18C\uBC88\uD638'])\n        Bike_api_set\
+        \ = set(Bike_api['\uB300\uC5EC\uC18C\uBC88\uD638'])\n        Deleted_node_set\
+        \ = Benchmark_set - Bike_api_set\n        New_node_set = Bike_api_set - Benchmark_set\n\
+        \        New_node = Bike_api[Bike_api['\uB300\uC5EC\uC18C\uBC88\uD638'].isin(New_node_set)]\n\
+        \        Old_node = Bike_api[~Bike_api['\uB300\uC5EC\uC18C\uBC88\uD638'].isin(New_node_set)]\n\
+        \        print(f'[\uC548\uB0B4] \uC0AD\uC81C\uB41C \uAC70\uCE58\uC18C\uAC00\
+        \ {len(Deleted_node_set)}\uAC1C \uC785\uB2C8\uB2E4.')\n        print(f'[\uC548\
+        \uB0B4] \uAE30\uC900 \uAC70\uCE58\uC18C \uAC2F\uC218: {len(Benchmark_set)}\
+        \ , \uC2E4\uC2DC\uAC04 \uAC70\uCE58\uC18C \uAC2F\uC218:{len(Bike_api_set)}')\n\
+        \        print(f'[\uC548\uB0B4] \uC0AD\uC81C\uB41C \uAC70\uCE58\uC18C \uB9AC\
+        \uC2A4\uD2B8:')\n        print(Deleted_node_set)\n        if len(New_node_set)\
+        \ == 0:\n            print('[\uC548\uB0B4] \uC2E0\uADDC \uCD94\uAC00 \uAC70\
+        \uCE58\uC18C\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4.')\n        else:\n          \
+        \  print(f'\\n[\uC548\uB0B4] \uC2E0\uADDC \uAC70\uCE58\uC18C\uAC00 {len(New_node_set)}\uAC1C\
+        \ \uC785\uB2C8\uB2E4.')\n            print(f'[\uC548\uB0B4] \uC2E0\uADDC \uAC70\
+        \uCE58\uC18C \uB9AC\uC2A4\uD2B8:')\n            New_node['\uC6B4\uC601\uBC29\
+        \uC2DD'] = 'QR'\n            for i, d, r, z in zip(New_node.index, New_node['\uB300\
+        \uC5EC\uC18C\uC774\uB984'], New_node['\uACBD\uB3C4'], New_node['\uC704\uB3C4\
+        ']):\n                print(f'{i}, {d}')\n                print(f'{r, z},\
+        \ {get_addr(r,z)}')\n                try:\n                    New_node.loc[i,'\uC790\
+        \uCE58\uAD6C'] = get_addr(New_node.loc[i,'\uACBD\uB3C4'], New_node.loc[i,'\uC704\
+        \uB3C4']).split(' ')[1]\n                except:\n                    print(f'\uC704\
+        \uACBD\uB3C4\uAC00 \uC798\uBABB\uB41C \uAC70\uCE58\uC18C \uC785\uB2C8\uB2E4\
+        : {d}')\n                    pass\n        Bike_api.reset_index(drop=True,inplace=True)\n\
+        \        New_node.reset_index(drop=True,inplace=True)\n\n        return Bike_api,\
+        \ New_node, Deleted_node_set\n\n    now_df, new_df, Deleted_node_set = ready_for_preprocessing(base_df)\n\
+        \    now_df.to_csv(now_path, index = False)\n    new_df.to_csv(new_path, index\
+        \ = False)\n\n    return Deleted_node_set\n\nimport argparse\n_parser = argparse.ArgumentParser(prog='Check\
+        \ diff op', description='')\n_parser.add_argument(\"--now\", dest=\"now_path\"\
+        , type=_make_parent_dirs_and_return_path, required=True, default=argparse.SUPPRESS)\n\
+        _parser.add_argument(\"--new\", dest=\"new_path\", type=_make_parent_dirs_and_return_path,\
+        \ required=True, default=argparse.SUPPRESS)\n_parser.add_argument(\"----output-paths\"\
+        , dest=\"_output_paths\", type=str, nargs=1)\n_parsed_args = vars(_parser.parse_args())\n\
+        _output_files = _parsed_args.pop(\"_output_paths\", [])\n\n_outputs = check_diff_op(**_parsed_args)\n\
+        \n_outputs = [_outputs]\n\n_output_serializers = [\n    str,\n\n]\n\nimport\
+        \ os\nfor idx, output_file in enumerate(_output_files):\n    try:\n      \
+        \  os.makedirs(os.path.dirname(output_file))\n    except OSError:\n      \
+        \  pass\n    with open(output_file, 'w') as f:\n        f.write(_output_serializers[idx](_outputs[idx]))\n"
+      image: 941102633028.dkr.ecr.ap-northeast-2.amazonaws.com/6team:es_ko_KST_XGH
+    outputs:
+      parameters:
+      - name: check-diff-op-Output
+        valueFrom: {path: /tmp/outputs/Output/data}
+      artifacts:
+      - {name: check-diff-op-Output, path: /tmp/outputs/Output/data}
+      - {name: check-diff-op-new, path: /tmp/outputs/new/data}
+      - {name: check-diff-op-now, path: /tmp/outputs/now/data}
+    metadata:
+      annotations: {pipelines.kubeflow.org/component_spec: '{"implementation": {"container":
+          {"args": ["--now", {"outputPath": "now"}, "--new", {"outputPath": "new"},
+          "----output-paths", {"outputPath": "Output"}], "command": ["python3", "-u",
+          "-c", "def _make_parent_dirs_and_return_path(file_path: str):\n    import
+          os\n    os.makedirs(os.path.dirname(file_path), exist_ok=True)\n    return
+          file_path\n\ndef check_diff_op(now_path, \n                  new_path):\n    import
+          pandas as pd\n    from datetime import datetime, timedelta\n    from sqlalchemy
+          import create_engine\n    import psycopg2\n    import requests\n    import
+          warnings\n    warnings.filterwarnings(action=''ignore'')\n    base_df =
+          pd.read_csv(''./all_all.csv'')\n\n    base_df.drop([''\uc77c\uc2dc'',''\uac70\uce58\uc728'',''\uac70\uce58\ub300\uc218'',''\ub300\uc5ec\uc18cid'',''\uc8fc\uc18c'',''\uc794\uc5ec\ub300\uc218''],axis=1,inplace=True)\n    base_df.reset_index(drop=True,inplace=True)\n\n    def
+          get_addr(X, Y):\n        apiKey=''6D89790B-9BFE-36C5-8776-9C7DD60ACC62''\n        r
+          =requests.get(f''http://apis.vworld.kr/coord2jibun.do?x={X}&y={Y}\\\n        &apiKey={apiKey}&domain=http://map.vworld.kr/&output=json'')\n        location
+          = r.json()\n        return location[''ADDR'']\n\n    def ready_for_preprocessing(Benchmark):\n        now
+          = datetime.now()\n        now_date = now.strftime(''%Y-%m-%d'')\n        now_hour
+          = now.hour\n        now_min = (now.minute // 10) * 10\n        ago24 = now
+          - timedelta(hours = 24)\n        ago48 = now - timedelta(hours = 48)\n        check_period
+          = now_date + f'' {now_hour}:{now_min}'' \n        engine = create_engine(\"postgresql://postgres:6team123!@restored-aurora.cj92narf3bwn.ap-northeast-2.rds.amazonaws.com:5432/final_project\")\n        Bike_api
+          = pd.read_sql_query(f\"\"\"SELECT *\n        FROM bike WHERE \uc77c\uc2dc
+          >= ''{check_period}'';\n        \"\"\", con=engine.connect())\n        Bike_api
+          = Bike_api[[''\ub300\uc5ec\uc18c\uc774\ub984'',''\uc704\ub3c4'',''\uacbd\ub3c4'']].drop_duplicates(''\ub300\uc5ec\uc18c\uc774\ub984'')\n        Bike_api[''\ub300\uc5ec\uc18c\ubc88\ud638'']
+          = Bike_api[''\ub300\uc5ec\uc18c\uc774\ub984''].apply(lambda x: x.split(''.'')[0]).astype(''int32'')\n        Benchmark_set
+          = set(Benchmark[''\ub300\uc5ec\uc18c\ubc88\ud638''])\n        Bike_api_set
+          = set(Bike_api[''\ub300\uc5ec\uc18c\ubc88\ud638''])\n        Deleted_node_set
+          = Benchmark_set - Bike_api_set\n        New_node_set = Bike_api_set - Benchmark_set\n        New_node
+          = Bike_api[Bike_api[''\ub300\uc5ec\uc18c\ubc88\ud638''].isin(New_node_set)]\n        Old_node
+          = Bike_api[~Bike_api[''\ub300\uc5ec\uc18c\ubc88\ud638''].isin(New_node_set)]\n        print(f''[\uc548\ub0b4]
+          \uc0ad\uc81c\ub41c \uac70\uce58\uc18c\uac00 {len(Deleted_node_set)}\uac1c
+          \uc785\ub2c8\ub2e4.'')\n        print(f''[\uc548\ub0b4] \uae30\uc900 \uac70\uce58\uc18c
+          \uac2f\uc218: {len(Benchmark_set)} , \uc2e4\uc2dc\uac04 \uac70\uce58\uc18c
+          \uac2f\uc218:{len(Bike_api_set)}'')\n        print(f''[\uc548\ub0b4] \uc0ad\uc81c\ub41c
+          \uac70\uce58\uc18c \ub9ac\uc2a4\ud2b8:'')\n        print(Deleted_node_set)\n        if
+          len(New_node_set) == 0:\n            print(''[\uc548\ub0b4] \uc2e0\uaddc
+          \ucd94\uac00 \uac70\uce58\uc18c\uac00 \uc5c6\uc2b5\ub2c8\ub2e4.'')\n        else:\n            print(f''\\n[\uc548\ub0b4]
+          \uc2e0\uaddc \uac70\uce58\uc18c\uac00 {len(New_node_set)}\uac1c \uc785\ub2c8\ub2e4.'')\n            print(f''[\uc548\ub0b4]
+          \uc2e0\uaddc \uac70\uce58\uc18c \ub9ac\uc2a4\ud2b8:'')\n            New_node[''\uc6b4\uc601\ubc29\uc2dd'']
+          = ''QR''\n            for i, d, r, z in zip(New_node.index, New_node[''\ub300\uc5ec\uc18c\uc774\ub984''],
+          New_node[''\uacbd\ub3c4''], New_node[''\uc704\ub3c4'']):\n                print(f''{i},
+          {d}'')\n                print(f''{r, z}, {get_addr(r,z)}'')\n                try:\n                    New_node.loc[i,''\uc790\uce58\uad6c'']
+          = get_addr(New_node.loc[i,''\uacbd\ub3c4''], New_node.loc[i,''\uc704\ub3c4'']).split(''
+          '')[1]\n                except:\n                    print(f''\uc704\uacbd\ub3c4\uac00
+          \uc798\ubabb\ub41c \uac70\uce58\uc18c \uc785\ub2c8\ub2e4: {d}'')\n                    pass\n        Bike_api.reset_index(drop=True,inplace=True)\n        New_node.reset_index(drop=True,inplace=True)\n\n        return
+          Bike_api, New_node, Deleted_node_set\n\n    now_df, new_df, Deleted_node_set
+          = ready_for_preprocessing(base_df)\n    now_df.to_csv(now_path, index =
+          False)\n    new_df.to_csv(new_path, index = False)\n\n    return Deleted_node_set\n\nimport
+          argparse\n_parser = argparse.ArgumentParser(prog=''Check diff op'', description='''')\n_parser.add_argument(\"--now\",
+          dest=\"now_path\", type=_make_parent_dirs_and_return_path, required=True,
+          default=argparse.SUPPRESS)\n_parser.add_argument(\"--new\", dest=\"new_path\",
+          type=_make_parent_dirs_and_return_path, required=True, default=argparse.SUPPRESS)\n_parser.add_argument(\"----output-paths\",
+          dest=\"_output_paths\", type=str, nargs=1)\n_parsed_args = vars(_parser.parse_args())\n_output_files
+          = _parsed_args.pop(\"_output_paths\", [])\n\n_outputs = check_diff_op(**_parsed_args)\n\n_outputs
+          = [_outputs]\n\n_output_serializers = [\n    str,\n\n]\n\nimport os\nfor
+          idx, output_file in enumerate(_output_files):\n    try:\n        os.makedirs(os.path.dirname(output_file))\n    except
+          OSError:\n        pass\n    with open(output_file, ''w'') as f:\n        f.write(_output_serializers[idx](_outputs[idx]))\n"],
+          "image": "941102633028.dkr.ecr.ap-northeast-2.amazonaws.com/6team:es_ko_KST_XGH"}},
+          "name": "Check diff op", "outputs": [{"name": "now", "type": "csv"}, {"name":
+          "new", "type": "csv"}, {"name": "Output", "type": "set"}]}', pipelines.kubeflow.org/component_ref: '{}'}
+  - name: ddareungi
+    dag:
+      tasks:
+      - name: bike-len-op
+        template: bike-len-op
+        dependencies: [check-diff-op]
+        arguments:
+          artifacts:
+          - {name: check-diff-op-new, from: '{{tasks.check-diff-op.outputs.artifacts.check-diff-op-new}}'}
+          - {name: check-diff-op-now, from: '{{tasks.check-diff-op.outputs.artifacts.check-diff-op-now}}'}
+      - {name: check-diff-op, template: check-diff-op}
+      - {name: ddareungi-op, template: ddareungi-op}
+      - {name: dust-op, template: dust-op}
+      - name: elasticsearch-op
+        template: elasticsearch-op
+        dependencies: [modeling-op]
+        arguments:
+          artifacts:
+          - {name: modeling-op-result, from: '{{tasks.modeling-op.outputs.artifacts.modeling-op-result}}'}
+      - name: merge-op
+        template: merge-op
+        dependencies: [check-diff-op, ddareungi-op, dust-op, region-op, weather-op]
+        arguments:
+          parameters:
+          - {name: check-diff-op-Output, value: '{{tasks.check-diff-op.outputs.parameters.check-diff-op-Output}}'}
+          artifacts:
+          - {name: ddareungi-op-ddareungi, from: '{{tasks.ddareungi-op.outputs.artifacts.ddareungi-op-ddareungi}}'}
+          - {name: dust-op-dust, from: '{{tasks.dust-op.outputs.artifacts.dust-op-dust}}'}
+          - {name: region-op-region, from: '{{tasks.region-op.outputs.artifacts.region-op-region}}'}
+          - {name: weather-op-weather, from: '{{tasks.weather-op.outputs.artifacts.weather-op-weather}}'}
+      - name: modeling-op
+        template: modeling-op
+        dependencies: [merge-op]
+        arguments:
+          artifacts:
+          - {name: merge-op-bike_list, from: '{{tasks.merge-op.outputs.artifacts.merge-op-bike_list}}'}
+          - {name: merge-op-x_test, from: '{{tasks.merge-op.outputs.artifacts.merge-op-x_test}}'}
+          - {name: merge-op-x_train, from: '{{tasks.merge-op.outputs.artifacts.merge-op-x_train}}'}
+          - {name: merge-op-y_train, from: '{{tasks.merge-op.outputs.artifacts.merge-op-y_train}}'}
+      - name: region-op
+        template: region-op
+        dependencies: [bike-len-op, check-diff-op]
+        arguments:
+          parameters:
+          - {name: check-diff-op-Output, value: '{{tasks.check-diff-op.outputs.parameters.check-diff-op-Output}}'}
+          artifacts:
+          - {name: bike-len-op-bike_len, from: '{{tasks.bike-len-op.outputs.artifacts.bike-len-op-bike_len}}'}
+          - {name: check-diff-op-new, from: '{{tasks.check-diff-op.outputs.artifacts.check-diff-op-new}}'}
+          - {name: check-diff-op-now, from: '{{tasks.check-diff-op.outputs.artifacts.check-diff-op-now}}'}
+      - {name: weather-op, template: weather-op}
+  - name: ddareungi-op
+    container:
+      args: [--ddareungi, /tmp/outputs/ddareungi/data]
+      command:
+      - python3
+      - -u
+      - -c
+      - "def _make_parent_dirs_and_return_path(file_path: str):\n    import os\n \
+        \   os.makedirs(os.path.dirname(file_path), exist_ok=True)\n    return file_path\n\
+        \ndef ddareungi_op(ddareungi_path ):\n    import psycopg2\n    import pandas\
+        \ as pd\n    from sqlalchemy import create_engine\n\n    # DB postgres \uC5D4\
+        \uC9C4 \uAC1D\uCCB4 \uC124\uC815\n    engine = create_engine(\"postgresql://postgres:6team123!@restored-aurora.cj92narf3bwn.ap-northeast-2.rds.amazonaws.com:5432/final_project\"\
+        )\n\n    df = pd.read_sql_query(f\"\"\"SELECT * FROM bike WHERE \uC77C\uC2DC\
+        \ BETWEEN (now() - interval '2 day'  - interval '2 hours' + interval '9 hour')\
+        \ AND (now() + interval '9 hour') AND extract(minute from \uC77C\uC2DC) in\
+        \ (50, 00, 10, 20, 30, 40);\n        \"\"\", con=engine.connect())\n\n   \
+        \ df['\uC77C\uC2DC'] = df['\uC77C\uC2DC'].apply(lambda x : x.strftime('%Y-%m-%d\
+        \ %H:%M') + '\uC790\uC804\uAC70')\n    df['\uB300\uC5EC\uC18C\uBC88\uD638\
+        '] = df.\uB300\uC5EC\uC18C\uC774\uB984.apply(lambda x : x.split('.')[0])\n\
+        \n    bike_pivot = pd.pivot_table(df, index = '\uB300\uC5EC\uC18C\uBC88\uD638\
+        ',columns = '\uC77C\uC2DC', values = '\uC794\uC5EC\uB300\uC218').reset_index()\n\
+        \    bike_pivot = bike_pivot.fillna(0)\n\n    bike_series = bike_pivot.iloc[:,0]\n\
+        \    bike_series = pd.DataFrame(bike_series) \n\n    bike_pivot_setting =\
+        \ bike_pivot.iloc[:,-288:] \n    bike_final = bike_series.join(bike_pivot_setting)\
+        \ \n\n    df_total = bike_final\n    df_total.\uB300\uC5EC\uC18C\uBC88\uD638\
+        \ = df_total.\uB300\uC5EC\uC18C\uBC88\uD638.astype(int)\n\n    df_total.to_csv(ddareungi_path,\
+        \ index = False)\n\nimport argparse\n_parser = argparse.ArgumentParser(prog='Ddareungi\
+        \ op', description='')\n_parser.add_argument(\"--ddareungi\", dest=\"ddareungi_path\"\
+        , type=_make_parent_dirs_and_return_path, required=True, default=argparse.SUPPRESS)\n\
+        _parsed_args = vars(_parser.parse_args())\n\n_outputs = ddareungi_op(**_parsed_args)\n"
+      image: 941102633028.dkr.ecr.ap-northeast-2.amazonaws.com/6team:es_ko_KST_XGH
+    outputs:
+      artifacts:
+      - {name: ddareungi-op-ddareungi, path: /tmp/outputs/ddareungi/data}
+    metadata:
+      annotations: {pipelines.kubeflow.org/component_spec: '{"implementation": {"container":
+          {"args": ["--ddareungi", {"outputPath": "ddareungi"}], "command": ["python3",
+          "-u", "-c", "def _make_parent_dirs_and_return_path(file_path: str):\n    import
+          os\n    os.makedirs(os.path.dirname(file_path), exist_ok=True)\n    return
+          file_path\n\ndef ddareungi_op(ddareungi_path ):\n    import psycopg2\n    import
+          pandas as pd\n    from sqlalchemy import create_engine\n\n    # DB postgres
+          \uc5d4\uc9c4 \uac1d\uccb4 \uc124\uc815\n    engine = create_engine(\"postgresql://postgres:6team123!@restored-aurora.cj92narf3bwn.ap-northeast-2.rds.amazonaws.com:5432/final_project\")\n\n    df
+          = pd.read_sql_query(f\"\"\"SELECT * FROM bike WHERE \uc77c\uc2dc BETWEEN
+          (now() - interval ''2 day''  - interval ''2 hours'' + interval ''9 hour'')
+          AND (now() + interval ''9 hour'') AND extract(minute from \uc77c\uc2dc)
+          in (50, 00, 10, 20, 30, 40);\n        \"\"\", con=engine.connect())\n\n    df[''\uc77c\uc2dc'']
+          = df[''\uc77c\uc2dc''].apply(lambda x : x.strftime(''%Y-%m-%d %H:%M'') +
+          ''\uc790\uc804\uac70'')\n    df[''\ub300\uc5ec\uc18c\ubc88\ud638''] = df.\ub300\uc5ec\uc18c\uc774\ub984.apply(lambda
+          x : x.split(''.'')[0])\n\n    bike_pivot = pd.pivot_table(df, index = ''\ub300\uc5ec\uc18c\ubc88\ud638'',columns
+          = ''\uc77c\uc2dc'', values = ''\uc794\uc5ec\ub300\uc218'').reset_index()\n    bike_pivot
+          = bike_pivot.fillna(0)\n\n    bike_series = bike_pivot.iloc[:,0]\n    bike_series
+          = pd.DataFrame(bike_series) \n\n    bike_pivot_setting = bike_pivot.iloc[:,-288:]
+          \n    bike_final = bike_series.join(bike_pivot_setting) \n\n    df_total
+          = bike_final\n    df_total.\ub300\uc5ec\uc18c\ubc88\ud638 = df_total.\ub300\uc5ec\uc18c\ubc88\ud638.astype(int)\n\n    df_total.to_csv(ddareungi_path,
+          index = False)\n\nimport argparse\n_parser = argparse.ArgumentParser(prog=''Ddareungi
+          op'', description='''')\n_parser.add_argument(\"--ddareungi\", dest=\"ddareungi_path\",
+          type=_make_parent_dirs_and_return_path, required=True, default=argparse.SUPPRESS)\n_parsed_args
+          = vars(_parser.parse_args())\n\n_outputs = ddareungi_op(**_parsed_args)\n"],
+          "image": "941102633028.dkr.ecr.ap-northeast-2.amazonaws.com/6team:es_ko_KST_XGH"}},
+          "name": "Ddareungi op", "outputs": [{"name": "ddareungi", "type": "csv"}]}',
+        pipelines.kubeflow.org/component_ref: '{}'}
+  - name: dust-op
+    container:
+      args: [--dust, /tmp/outputs/dust/data]
+      command:
+      - python3
+      - -u
+      - -c
+      - "def _make_parent_dirs_and_return_path(file_path: str):\n    import os\n \
+        \   os.makedirs(os.path.dirname(file_path), exist_ok=True)\n    return file_path\n\
+        \ndef dust_op(dust_path):\n    from datetime import datetime\n    from sqlalchemy\
+        \ import create_engine\n    import psycopg2\n    import pandas as pd\n\n \
+        \   engine = create_engine(\"postgresql://postgres:6team123!@restored-aurora.cj92narf3bwn.ap-northeast-2.rds.amazonaws.com:5432/final_project\"\
+        )\n    table_dust = pd.read_sql_query(f\"\"\"\n    SELECT \uC77C\uC2DC, \uCE21\
+        \uC815\uC18C\uBA85, \uD1B5\uD569\uB300\uAE30\uD658\uACBD\uB4F1\uAE09 \\\n\
+        \    FROM dust WHERE \uC77C\uC2DC \\\n    BETWEEN (now() - interval '2 day'\
+        \ -interval '7 hours'+ interval '9 hour') \\\n    AND (now() + interval '9\
+        \ hour') \\\n    AND extract(minute from \uC77C\uC2DC) in (00);\n    \"\"\"\
+        , con=engine.connect())\n\n    table_dust.rename(columns = {\"\uCE21\uC815\
+        \uC18C\uBA85\" : \"\uAD8C\uC5ED\uBA85\", \"\uC77C\uC2DC\" : \"\uAD00\uCE21\
+        \uC77C\uC2DC\"}, inplace = True)\n    table_dust['\uAD00\uCE21\uC77C\uC2DC\
+        '] = table_dust['\uAD00\uCE21\uC77C\uC2DC'].apply(lambda x : x.strftime('%Y-%m-%d\
+        \ %H:%M') + '\uBBF8\uC138\uBA3C\uC9C0')\n    def func(table_dust):\n     \
+        \   if table_dust['\uD1B5\uD569\uB300\uAE30\uD658\uACBD\uB4F1\uAE09'] == '\uC88B\
+        \uC74C':\n            return 'good'\n        elif table_dust['\uD1B5\uD569\
+        \uB300\uAE30\uD658\uACBD\uB4F1\uAE09'] == '\uBCF4\uD1B5':\n            return\
+        \ 'good'\n        elif table_dust['\uD1B5\uD569\uB300\uAE30\uD658\uACBD\uB4F1\
+        \uAE09'] == '\uB098\uC068':\n            return 'good'\n        elif table_dust['\uD1B5\
+        \uD569\uB300\uAE30\uD658\uACBD\uB4F1\uAE09'] == '\uC810\uAC80\uC911':\n  \
+        \          return '\uC810\uAC80\uC911'\n        else:\n            return\
+        \ 'bad'\n    table_dust['\uD1B5\uD569\uB300\uAE30\uD658\uACBD\uB4F1\uAE09\
+        '] = table_dust.apply(func, axis=1)\n    dust_pivot_data = pd.pivot_table(table_dust,\
+        \ index = '\uAD8C\uC5ED\uBA85',columns = '\uAD00\uCE21\uC77C\uC2DC', values\
+        \ = '\uD1B5\uD569\uB300\uAE30\uD658\uACBD\uB4F1\uAE09', aggfunc=lambda x:\
+        \ ' '.join(str(v) for v in x)).reset_index()\n    dust_pivot_data_list = dust_pivot_data.columns.tolist()\n\
+        \n    for i in range(len(dust_pivot_data_list)):\n        if ('\uC810\uAC80\
+        \uC911' in dust_pivot_data.iloc[:,i].tolist()) == True:\n            dust_pivot_data.iloc[:,i]\
+        \ = \\\n            dust_pivot_data.iloc[:,i].apply(lambda x : pd.DataFrame(dust_pivot_data.iloc[:,i].value_counts()).index[0]\
+        \ if x == '\uC810\uAC80\uC911' else x)\n\n    dust_jachigu = dust_pivot_data.iloc[:,0]\n\
+        \    dust_series = pd.DataFrame(dust_jachigu)\n    dust_pivot_setting = dust_pivot_data.iloc[:,-49:]\n\
+        \    dust_final = dust_series.join(dust_pivot_setting)\n\n    for col in dust_final.columns.tolist()[1:]:\n\
+        \        dust_final[col] = dust_final[col].apply(lambda x : 0 if x=='good'\
+        \ else 1)\n    dust_final.to_csv(dust_path, index = False)\n\nimport argparse\n\
+        _parser = argparse.ArgumentParser(prog='Dust op', description='')\n_parser.add_argument(\"\
+        --dust\", dest=\"dust_path\", type=_make_parent_dirs_and_return_path, required=True,\
+        \ default=argparse.SUPPRESS)\n_parsed_args = vars(_parser.parse_args())\n\n\
+        _outputs = dust_op(**_parsed_args)\n"
+      image: 941102633028.dkr.ecr.ap-northeast-2.amazonaws.com/6team:es_ko_KST_XGH
+    outputs:
+      artifacts:
+      - {name: dust-op-dust, path: /tmp/outputs/dust/data}
+    metadata:
+      annotations: {pipelines.kubeflow.org/component_spec: '{"implementation": {"container":
+          {"args": ["--dust", {"outputPath": "dust"}], "command": ["python3", "-u",
+          "-c", "def _make_parent_dirs_and_return_path(file_path: str):\n    import
+          os\n    os.makedirs(os.path.dirname(file_path), exist_ok=True)\n    return
+          file_path\n\ndef dust_op(dust_path):\n    from datetime import datetime\n    from
+          sqlalchemy import create_engine\n    import psycopg2\n    import pandas
+          as pd\n\n    engine = create_engine(\"postgresql://postgres:6team123!@restored-aurora.cj92narf3bwn.ap-northeast-2.rds.amazonaws.com:5432/final_project\")\n    table_dust
+          = pd.read_sql_query(f\"\"\"\n    SELECT \uc77c\uc2dc, \uce21\uc815\uc18c\uba85,
+          \ud1b5\ud569\ub300\uae30\ud658\uacbd\ub4f1\uae09 \\\n    FROM dust WHERE
+          \uc77c\uc2dc \\\n    BETWEEN (now() - interval ''2 day'' -interval ''7 hours''+
+          interval ''9 hour'') \\\n    AND (now() + interval ''9 hour'') \\\n    AND
+          extract(minute from \uc77c\uc2dc) in (00);\n    \"\"\", con=engine.connect())\n\n    table_dust.rename(columns
+          = {\"\uce21\uc815\uc18c\uba85\" : \"\uad8c\uc5ed\uba85\", \"\uc77c\uc2dc\"
+          : \"\uad00\uce21\uc77c\uc2dc\"}, inplace = True)\n    table_dust[''\uad00\uce21\uc77c\uc2dc'']
+          = table_dust[''\uad00\uce21\uc77c\uc2dc''].apply(lambda x : x.strftime(''%Y-%m-%d
+          %H:%M'') + ''\ubbf8\uc138\uba3c\uc9c0'')\n    def func(table_dust):\n        if
+          table_dust[''\ud1b5\ud569\ub300\uae30\ud658\uacbd\ub4f1\uae09''] == ''\uc88b\uc74c'':\n            return
+          ''good''\n        elif table_dust[''\ud1b5\ud569\ub300\uae30\ud658\uacbd\ub4f1\uae09'']
+          == ''\ubcf4\ud1b5'':\n            return ''good''\n        elif table_dust[''\ud1b5\ud569\ub300\uae30\ud658\uacbd\ub4f1\uae09'']
+          == ''\ub098\uc068'':\n            return ''good''\n        elif table_dust[''\ud1b5\ud569\ub300\uae30\ud658\uacbd\ub4f1\uae09'']
+          == ''\uc810\uac80\uc911'':\n            return ''\uc810\uac80\uc911''\n        else:\n            return
+          ''bad''\n    table_dust[''\ud1b5\ud569\ub300\uae30\ud658\uacbd\ub4f1\uae09'']
+          = table_dust.apply(func, axis=1)\n    dust_pivot_data = pd.pivot_table(table_dust,
+          index = ''\uad8c\uc5ed\uba85'',columns = ''\uad00\uce21\uc77c\uc2dc'', values
+          = ''\ud1b5\ud569\ub300\uae30\ud658\uacbd\ub4f1\uae09'', aggfunc=lambda x:
+          '' ''.join(str(v) for v in x)).reset_index()\n    dust_pivot_data_list =
+          dust_pivot_data.columns.tolist()\n\n    for i in range(len(dust_pivot_data_list)):\n        if
+          (''\uc810\uac80\uc911'' in dust_pivot_data.iloc[:,i].tolist()) == True:\n            dust_pivot_data.iloc[:,i]
+          = \\\n            dust_pivot_data.iloc[:,i].apply(lambda x : pd.DataFrame(dust_pivot_data.iloc[:,i].value_counts()).index[0]
+          if x == ''\uc810\uac80\uc911'' else x)\n\n    dust_jachigu = dust_pivot_data.iloc[:,0]\n    dust_series
+          = pd.DataFrame(dust_jachigu)\n    dust_pivot_setting = dust_pivot_data.iloc[:,-49:]\n    dust_final
+          = dust_series.join(dust_pivot_setting)\n\n    for col in dust_final.columns.tolist()[1:]:\n        dust_final[col]
+          = dust_final[col].apply(lambda x : 0 if x==''good'' else 1)\n    dust_final.to_csv(dust_path,
+          index = False)\n\nimport argparse\n_parser = argparse.ArgumentParser(prog=''Dust
+          op'', description='''')\n_parser.add_argument(\"--dust\", dest=\"dust_path\",
+          type=_make_parent_dirs_and_return_path, required=True, default=argparse.SUPPRESS)\n_parsed_args
+          = vars(_parser.parse_args())\n\n_outputs = dust_op(**_parsed_args)\n"],
+          "image": "941102633028.dkr.ecr.ap-northeast-2.amazonaws.com/6team:es_ko_KST_XGH"}},
+          "name": "Dust op", "outputs": [{"name": "dust", "type": "csv"}]}', pipelines.kubeflow.org/component_ref: '{}'}
+  - name: elasticsearch-op
+    container:
+      args: [--result, /tmp/inputs/result/data]
+      command:
+      - python3
+      - -u
+      - -c
+      - "def elasticsearch_op(result_path):\n    import psycopg2\n    import elasticsearch\n\
+        \    import pandas as pd\n    import requests\n    from datetime import datetime\n\
+        \    from elasticsearch import Elasticsearch \n    from elasticsearch.helpers\
+        \ import bulk\n    from sqlalchemy import create_engine\n\n    def connect_elasticsearch():\n\
+        \        es = None\n        es = Elasticsearch(hosts=\"https://elastic:brYj4OIjnlBAdj0uZ4TFWhF0@90f0365b5bfa4dbf9aa9b43b4af8e16b.ap-northeast-2.aws.elastic-cloud.com:9243\"\
+        )\n\n        if es.ping():\n            print('Elasticsearch \uC5F0\uACB0\
+        \ \uC131\uACF5!')\n        else:\n            print('Elasticsearch \uC5F0\uACB0\
+        \ \uC2E4\uD328!')\n        return es\n    es = connect_elasticsearch()\n\n\
+        \    def get_addr(X, Y):\n        apiKey='6D89790B-9BFE-36C5-8776-9C7DD60ACC62'\n\
+        \        r =requests.get(f'http://apis.vworld.kr/coord2jibun.do?x={X}&y={Y}\\\
+        \n        &apiKey={apiKey}&domain=http://map.vworld.kr/&output=json')\n  \
+        \      location = r.json()\n        try:\n            location = location['ADDR']\n\
+        \        except:\n            location = ''\n        return location\n\n \
+        \   NOW_DATE = datetime.now().date()\n    NOW_HOUR = datetime.now().hour\n\
+        \    NOW_MINUTE = (datetime.now().minute // 10) * 10\n\n    result = pd.read_csv(result_path)\n\
+        \    engine = create_engine(\"postgresql://postgres:6team123!@restored-aurora.cj92narf3bwn.ap-northeast-2.rds.amazonaws.com:5432/final_project\"\
+        )\n    df = pd.read_sql_query(f\"\"\"\n    SELECT \uAC70\uCE58\uB300\uC218\
+        , \uB300\uC5EC\uC18C\uC774\uB984, \uC704\uB3C4, \uACBD\uB3C4, \uC77C\uC2DC\
+        \ \\\n    FROM bike \\\n    WHERE \uC77C\uC2DC>='{NOW_DATE} {NOW_HOUR}:{NOW_MINUTE}';\n\
+        \    \"\"\", \n    con=engine.connect(), \n    parse_dates = ['created_at',\
+        \ 'updated_at'])\n\n    df['\uB300\uC5EC\uC18C\uC774\uB984'] = df['\uB300\uC5EC\
+        \uC18C\uC774\uB984'].astype('str')\n    result['\uB300\uC5EC\uC18C\uC774\uB984\
+        '] = result['\uB300\uC5EC\uC18C\uC774\uB984'].astype('str')\n    df['\uB300\
+        \uC5EC\uC18C\uBC88\uD638'] = df['\uB300\uC5EC\uC18C\uC774\uB984'].apply(lambda\
+        \ x: x.split('.')[0])\n    result['\uB300\uC5EC\uC18C\uBC88\uD638'] = result['\uB300\
+        \uC5EC\uC18C\uC774\uB984'].apply(lambda x: x.split('.')[0])\n    result.drop(['\uB300\
+        \uC5EC\uC18C\uC774\uB984'], axis= 1, inplace = True)\n\n    df = df.merge(result,\
+        \ how = 'left', on  = '\uB300\uC5EC\uC18C\uBC88\uD638') # \uC608\uCE21 DataFrame\n\
+        \    df['\uAC70\uCE58\uC728'] = (df['\uC608\uCE21\uC794\uC5EC\uB300\uC218\
+        _10\uBD84'] / df['\uAC70\uCE58\uB300\uC218']) * 100\n    print(df.head(),\
+        \ '\uC804')\n    df['\uAC70\uCE58\uC728'] = df['\uAC70\uCE58\uC728'].apply(lambda\
+        \ x: round(x, 0))\n    df['\uAC70\uCE58\uC728'] = df['\uAC70\uCE58\uC728'].fillna(999)\n\
+        \    df['\uAC70\uCE58\uC728'] = df['\uAC70\uCE58\uC728'].astype('int')\n \
+        \   print(df.head(), '\uD6C4')\n    df_ref = pd.read_sql(\"\"\"\n    SELECT\
+        \ \uC704\uB3C4, \uACBD\uB3C4, \uAD8C\uC5ED\uBA85\n    FROM weather_join;\n\
+        \    \"\"\",\n    con=engine,\n    parse_dates=['created_at', 'updated_at'])\n\
+        \n    df = df.merge(df_ref, how = 'left', on = ['\uC704\uB3C4', '\uACBD\uB3C4\
+        '])\n    df['\uAD8C\uC5ED\uBA85'] = df['\uAD8C\uC5ED\uBA85'].fillna(1)\n\n\
+        \    df['\uAD8C\uC5ED\uBA85'] = df.apply(lambda x: get_addr(x['\uACBD\uB3C4\
+        '], x['\uC704\uB3C4']) if x['\uAD8C\uC5ED\uBA85'] == 1 else x['\uAD8C\uC5ED\
+        \uBA85'], axis = 1)\n    df['\uAD8C\uC5ED\uBA85'] = df['\uAD8C\uC5ED\uBA85\
+        '].apply(lambda x: x.split(' ')[1] if len(x) > 8 else x)\n\n    target = []\n\
+        \    gu = ['\uC740\uD3C9\uAD6C', '\uC740\uD3C9\uAD6C', '\uC131\uBD81\uAD6C\
+        ', '\uAC15\uB0A8\uAD6C']\n\n    for row, g in zip(df[df['\uAD8C\uC5ED\uBA85\
+        '] == ''].iterrows(), gu):\n        target.append((row[1]['\uC704\uB3C4'],\
+        \ row[1]['\uACBD\uB3C4'], g))\n    try:    \n        for x in df[df['\uAD8C\
+        \uC5ED\uBA85'] == ''].iterrows():\n            for t in target:\n        \
+        \        if (x[1]['\uC704\uB3C4'] == t[0]) & (x[1]['\uACBD\uB3C4'] == t[1]):\n\
+        \                    df.at[x[0], '\uAD8C\uC5ED\uBA85'] = t[2]\n        print('\uAD8C\
+        \uC5ED\uBA85 Null\uAC12 \uBCF4\uC815 \uC131\uACF5 !')\n    except:\n     \
+        \   print('[Error]\uAD8C\uC5ED\uBA85 Null\uAC12 \uBCF4\uC815 \uC2E4\uD328\
+        \ !')\n    df['location'] = 0\n    df['location'] = df['\uC704\uB3C4'].astype('str')\
+        \ + ',' + df['\uACBD\uB3C4'].astype('str')\n    df = df[['\uB300\uC5EC\uC18C\
+        \uC774\uB984', '\uAC70\uCE58\uC728', '\uC608\uCE21\uC794\uC5EC\uB300\uC218\
+        _10\uBD84', '\uC77C\uC2DC', 'location', '\uAD8C\uC5ED\uBA85']]\n    df['\uC77C\
+        \uC2DC'] = df['\uC77C\uC2DC'].apply(lambda x: x.isoformat())\n    print('\uB370\
+        \uC774\uD130 \uC804\uCC98\uB9AC \uC644\uB8CC !')\n    print(df.head())\n \
+        \   documents = df.to_dict(orient='records')\n    print('Dataframe \uB370\uC774\
+        \uD130 json \uBCC0\uD658 \uC644\uB8CC ')\n\n    DATE = datetime.today().date()\n\
+        \    NOW = datetime.now()\n    res =  es.indices.get_alias(\"*\")\n    if\
+        \ f'p_ddareungi-{DATE}' not in res:\n        mappings = {\n           \"mappings\"\
+        : {\n           \"properties\" : {\n             \"\uB300\uC5EC\uC18C\uC774\
+        \uB984\" : {\"type\" : \"keyword\"},\n             \"\uAC70\uCE58\uC728\"\
+        \ : {\"type\" : \"integer\"},\n             \"\uC608\uCE21\uC794\uC5EC\uB300\
+        \uC218_10\uBD84\" : {\"type\" : \"integer\"},\n             \"\uC77C\uC2DC\
+        \" : {\"type\" : \"date\"},\n             \"location\": {\"type\": \"geo_point\"\
+        },\n             \"\uAD8C\uC5ED\uBA85\" : {\"type\" : \"keyword\"}\n     \
+        \            }\n              }\n           }\n        res =  es.indices.get_alias(\"\
+        *\")\n        if f'p_ddareungi-{DATE}' not in res:\n            es.indices.create(index=f'p_ddareungi-{DATE}',body=mappings)\n\
+        \            print(f'[{NOW}]p_ddareungi-{DATE} \uC778\uB371\uC2A4 \uC0DD\uC131\
+        \ \uC644\uB8CC!')\n        else:\n            print(f'[{NOW}]p_ddareungi-{DATE}\
+        \ \uC778\uB371\uC2A4\uAC00 \uC774\uBBF8 \uC874\uC7AC\uD569\uB2C8\uB2E4!')\n\
+        \    else:\n        pass\n    bulk(es, documents, stats_only = True, index=f'p_ddareungi-{DATE}')\n\
+        \    length = len(documents)\n    print(f'[{NOW}]p_ddareungi-{DATE}\uB85C\
+        \ {length}\uAC1C\uC758 document \uC0BD\uC785 \uC644\uB8CC!')\n\nimport argparse\n\
+        _parser = argparse.ArgumentParser(prog='Elasticsearch op', description='')\n\
+        _parser.add_argument(\"--result\", dest=\"result_path\", type=str, required=True,\
+        \ default=argparse.SUPPRESS)\n_parsed_args = vars(_parser.parse_args())\n\n\
+        _outputs = elasticsearch_op(**_parsed_args)\n"
+      image: 941102633028.dkr.ecr.ap-northeast-2.amazonaws.com/6team:es_ko_KST_XGH
+    inputs:
+      artifacts:
+      - {name: modeling-op-result, path: /tmp/inputs/result/data}
+    metadata:
+      annotations: {pipelines.kubeflow.org/component_spec: '{"implementation": {"container":
+          {"args": ["--result", {"inputPath": "result"}], "command": ["python3", "-u",
+          "-c", "def elasticsearch_op(result_path):\n    import psycopg2\n    import
+          elasticsearch\n    import pandas as pd\n    import requests\n    from datetime
+          import datetime\n    from elasticsearch import Elasticsearch \n    from
+          elasticsearch.helpers import bulk\n    from sqlalchemy import create_engine\n\n    def
+          connect_elasticsearch():\n        es = None\n        es = Elasticsearch(hosts=\"https://elastic:brYj4OIjnlBAdj0uZ4TFWhF0@90f0365b5bfa4dbf9aa9b43b4af8e16b.ap-northeast-2.aws.elastic-cloud.com:9243\")\n\n        if
+          es.ping():\n            print(''Elasticsearch \uc5f0\uacb0 \uc131\uacf5!'')\n        else:\n            print(''Elasticsearch
+          \uc5f0\uacb0 \uc2e4\ud328!'')\n        return es\n    es = connect_elasticsearch()\n\n    def
+          get_addr(X, Y):\n        apiKey=''6D89790B-9BFE-36C5-8776-9C7DD60ACC62''\n        r
+          =requests.get(f''http://apis.vworld.kr/coord2jibun.do?x={X}&y={Y}\\\n        &apiKey={apiKey}&domain=http://map.vworld.kr/&output=json'')\n        location
+          = r.json()\n        try:\n            location = location[''ADDR'']\n        except:\n            location
+          = ''''\n        return location\n\n    NOW_DATE = datetime.now().date()\n    NOW_HOUR
+          = datetime.now().hour\n    NOW_MINUTE = (datetime.now().minute // 10) *
+          10\n\n    result = pd.read_csv(result_path)\n    engine = create_engine(\"postgresql://postgres:6team123!@restored-aurora.cj92narf3bwn.ap-northeast-2.rds.amazonaws.com:5432/final_project\")\n    df
+          = pd.read_sql_query(f\"\"\"\n    SELECT \uac70\uce58\ub300\uc218, \ub300\uc5ec\uc18c\uc774\ub984,
+          \uc704\ub3c4, \uacbd\ub3c4, \uc77c\uc2dc \\\n    FROM bike \\\n    WHERE
+          \uc77c\uc2dc>=''{NOW_DATE} {NOW_HOUR}:{NOW_MINUTE}'';\n    \"\"\", \n    con=engine.connect(),
+          \n    parse_dates = [''created_at'', ''updated_at''])\n\n    df[''\ub300\uc5ec\uc18c\uc774\ub984'']
+          = df[''\ub300\uc5ec\uc18c\uc774\ub984''].astype(''str'')\n    result[''\ub300\uc5ec\uc18c\uc774\ub984'']
+          = result[''\ub300\uc5ec\uc18c\uc774\ub984''].astype(''str'')\n    df[''\ub300\uc5ec\uc18c\ubc88\ud638'']
+          = df[''\ub300\uc5ec\uc18c\uc774\ub984''].apply(lambda x: x.split(''.'')[0])\n    result[''\ub300\uc5ec\uc18c\ubc88\ud638'']
+          = result[''\ub300\uc5ec\uc18c\uc774\ub984''].apply(lambda x: x.split(''.'')[0])\n    result.drop([''\ub300\uc5ec\uc18c\uc774\ub984''],
+          axis= 1, inplace = True)\n\n    df = df.merge(result, how = ''left'', on  =
+          ''\ub300\uc5ec\uc18c\ubc88\ud638'') # \uc608\uce21 DataFrame\n    df[''\uac70\uce58\uc728'']
+          = (df[''\uc608\uce21\uc794\uc5ec\ub300\uc218_10\ubd84''] / df[''\uac70\uce58\ub300\uc218''])
+          * 100\n    print(df.head(), ''\uc804'')\n    df[''\uac70\uce58\uc728'']
+          = df[''\uac70\uce58\uc728''].apply(lambda x: round(x, 0))\n    df[''\uac70\uce58\uc728'']
+          = df[''\uac70\uce58\uc728''].fillna(999)\n    df[''\uac70\uce58\uc728'']
+          = df[''\uac70\uce58\uc728''].astype(''int'')\n    print(df.head(), ''\ud6c4'')\n    df_ref
+          = pd.read_sql(\"\"\"\n    SELECT \uc704\ub3c4, \uacbd\ub3c4, \uad8c\uc5ed\uba85\n    FROM
+          weather_join;\n    \"\"\",\n    con=engine,\n    parse_dates=[''created_at'',
+          ''updated_at''])\n\n    df = df.merge(df_ref, how = ''left'', on = [''\uc704\ub3c4'',
+          ''\uacbd\ub3c4''])\n    df[''\uad8c\uc5ed\uba85''] = df[''\uad8c\uc5ed\uba85''].fillna(1)\n\n    df[''\uad8c\uc5ed\uba85'']
+          = df.apply(lambda x: get_addr(x[''\uacbd\ub3c4''], x[''\uc704\ub3c4''])
+          if x[''\uad8c\uc5ed\uba85''] == 1 else x[''\uad8c\uc5ed\uba85''], axis =
+          1)\n    df[''\uad8c\uc5ed\uba85''] = df[''\uad8c\uc5ed\uba85''].apply(lambda
+          x: x.split('' '')[1] if len(x) > 8 else x)\n\n    target = []\n    gu =
+          [''\uc740\ud3c9\uad6c'', ''\uc740\ud3c9\uad6c'', ''\uc131\ubd81\uad6c'',
+          ''\uac15\ub0a8\uad6c'']\n\n    for row, g in zip(df[df[''\uad8c\uc5ed\uba85'']
+          == ''''].iterrows(), gu):\n        target.append((row[1][''\uc704\ub3c4''],
+          row[1][''\uacbd\ub3c4''], g))\n    try:    \n        for x in df[df[''\uad8c\uc5ed\uba85'']
+          == ''''].iterrows():\n            for t in target:\n                if (x[1][''\uc704\ub3c4'']
+          == t[0]) & (x[1][''\uacbd\ub3c4''] == t[1]):\n                    df.at[x[0],
+          ''\uad8c\uc5ed\uba85''] = t[2]\n        print(''\uad8c\uc5ed\uba85 Null\uac12
+          \ubcf4\uc815 \uc131\uacf5 !'')\n    except:\n        print(''[Error]\uad8c\uc5ed\uba85
+          Null\uac12 \ubcf4\uc815 \uc2e4\ud328 !'')\n    df[''location''] = 0\n    df[''location'']
+          = df[''\uc704\ub3c4''].astype(''str'') + '','' + df[''\uacbd\ub3c4''].astype(''str'')\n    df
+          = df[[''\ub300\uc5ec\uc18c\uc774\ub984'', ''\uac70\uce58\uc728'', ''\uc608\uce21\uc794\uc5ec\ub300\uc218_10\ubd84'',
+          ''\uc77c\uc2dc'', ''location'', ''\uad8c\uc5ed\uba85'']]\n    df[''\uc77c\uc2dc'']
+          = df[''\uc77c\uc2dc''].apply(lambda x: x.isoformat())\n    print(''\ub370\uc774\ud130
+          \uc804\ucc98\ub9ac \uc644\ub8cc !'')\n    print(df.head())\n    documents
+          = df.to_dict(orient=''records'')\n    print(''Dataframe \ub370\uc774\ud130
+          json \ubcc0\ud658 \uc644\ub8cc '')\n\n    DATE = datetime.today().date()\n    NOW
+          = datetime.now()\n    res =  es.indices.get_alias(\"*\")\n    if f''p_ddareungi-{DATE}''
+          not in res:\n        mappings = {\n           \"mappings\": {\n           \"properties\"
+          : {\n             \"\ub300\uc5ec\uc18c\uc774\ub984\" : {\"type\" : \"keyword\"},\n             \"\uac70\uce58\uc728\"
+          : {\"type\" : \"integer\"},\n             \"\uc608\uce21\uc794\uc5ec\ub300\uc218_10\ubd84\"
+          : {\"type\" : \"integer\"},\n             \"\uc77c\uc2dc\" : {\"type\" :
+          \"date\"},\n             \"location\": {\"type\": \"geo_point\"},\n             \"\uad8c\uc5ed\uba85\"
+          : {\"type\" : \"keyword\"}\n                 }\n              }\n           }\n        res
+          =  es.indices.get_alias(\"*\")\n        if f''p_ddareungi-{DATE}'' not in
+          res:\n            es.indices.create(index=f''p_ddareungi-{DATE}'',body=mappings)\n            print(f''[{NOW}]p_ddareungi-{DATE}
+          \uc778\ub371\uc2a4 \uc0dd\uc131 \uc644\ub8cc!'')\n        else:\n            print(f''[{NOW}]p_ddareungi-{DATE}
+          \uc778\ub371\uc2a4\uac00 \uc774\ubbf8 \uc874\uc7ac\ud569\ub2c8\ub2e4!'')\n    else:\n        pass\n    bulk(es,
+          documents, stats_only = True, index=f''p_ddareungi-{DATE}'')\n    length
+          = len(documents)\n    print(f''[{NOW}]p_ddareungi-{DATE}\ub85c {length}\uac1c\uc758
+          document \uc0bd\uc785 \uc644\ub8cc!'')\n\nimport argparse\n_parser = argparse.ArgumentParser(prog=''Elasticsearch
+          op'', description='''')\n_parser.add_argument(\"--result\", dest=\"result_path\",
+          type=str, required=True, default=argparse.SUPPRESS)\n_parsed_args = vars(_parser.parse_args())\n\n_outputs
+          = elasticsearch_op(**_parsed_args)\n"], "image": "941102633028.dkr.ecr.ap-northeast-2.amazonaws.com/6team:es_ko_KST_XGH"}},
+          "inputs": [{"name": "result", "type": "csv"}], "name": "Elasticsearch op"}',
+        pipelines.kubeflow.org/component_ref: '{}'}
+  - name: merge-op
+    container:
+      args: [--region, /tmp/inputs/region/data, --ddareungi, /tmp/inputs/ddareungi/data,
+        --weather, /tmp/inputs/weather/data, --dust, /tmp/inputs/dust/data, --deleted-path,
+        '{{inputs.parameters.check-diff-op-Output}}', --x-train, /tmp/outputs/x_train/data,
+        --y-train, /tmp/outputs/y_train/data, --x-test, /tmp/outputs/x_test/data,
+        --bike-list, /tmp/outputs/bike_list/data]
+      command:
+      - python3
+      - -u
+      - -c
+      - "def _make_parent_dirs_and_return_path(file_path: str):\n    import os\n \
+        \   os.makedirs(os.path.dirname(file_path), exist_ok=True)\n    return file_path\n\
+        \ndef merge_op(region_path , \n             ddareungi_path , \n          \
+        \   weather_path , \n             dust_path ,\n             deleted_path,\
+        \ \n             x_train_path , \n             y_train_path , \n         \
+        \    x_test_path , \n             bike_list_path ):\n    import pandas as\
+        \ pd\n    import numpy as np\n    region_path = pd.read_csv(region_path)\n\
+        \    ddareungi_path = pd.read_csv(ddareungi_path)\n    weather_path = pd.read_csv(weather_path)\n\
+        \    dust_path = pd.read_csv(dust_path)\n    deleted_node = deleted_path\n\
+        \n    ddareng = pd.merge(ddareungi_path, region_path, on='\uB300\uC5EC\uC18C\
+        \uBC88\uD638',how='left')\n    air_weather = pd.merge(dust_path, weather_path,\
+        \ on = '\uAD8C\uC5ED\uBA85', how = 'left' )\n    air_weather.rename(columns\
+        \ = {'\uAD8C\uC5ED\uBA85':'\uC790\uCE58\uAD6C'},inplace=True)\n\n    model_data\
+        \ = pd.merge(ddareng, air_weather, on='\uC790\uCE58\uAD6C',how='left')\n \
+        \   if len(deleted_node) != 0:\n        model_data = model_data[model_data.\uB300\
+        \uC5EC\uC18C\uBC88\uD638.isin(list(deleted_node)) == False]\n    model_data['\uB300\
+        \uC5EC\uC18C\uC774\uB984'] = model_data['\uB300\uC5EC\uC18C\uC774\uB984'].astype('str')\n\
+        \    bike_list = model_data.\uB300\uC5EC\uC18C\uC774\uB984.tolist()\n\n  \
+        \  model_data = model_data.drop([\"\uB300\uC5EC\uC18C\uBC88\uD638\",\"\uC704\
+        \uB3C4\",\"\uACBD\uB3C4\",\"geometry\",\"\uB300\uC5EC\uC18C\uC774\uB984\"\
+        ],axis=1) \n\n    air_weather_columns = air_weather.columns.tolist()\n   \
+        \ geo_columns = region_path.columns.tolist()\n    not_dareng_columns = air_weather_columns\
+        \ + geo_columns\n    not_dareng_columns = set(not_dareng_columns) - set(['\uB300\
+        \uC5EC\uC18C\uBC88\uD638','\uC790\uCE58\uAD6C','geometry', '\uB300\uC5EC\uC18C\
+        \uC774\uB984', '\uACBD\uB3C4', '\uC704\uB3C4'])\n\n    def rename_col(df):\n\
+        \        rename_columns_list = []\n        for i in df.columns.tolist():\n\
+        \            try:\n                rename_columns_list.append(i.replace(':','\uC2DC\
+        '))\n            except:\n                rename_columns_list.append(i)\n\
+        \        df.columns = rename_columns_list\n        return df\n\n    x_train\
+        \ = model_data[ddareungi_path.columns.tolist()[1:-1] + list(not_dareng_columns)]\n\
+        \    x_train = rename_col(x_train)\n    y_train = model_data[ddareungi_path.columns.tolist()[-1]]\n\
+        \    y_train = y_train.rename(y_train.name.replace(':','\uC2DC'))\n    x_test\
+        \ = model_data[ddareungi_path.columns.tolist()[2:] + list(not_dareng_columns)]\n\
+        \    x_test = rename_col(x_test)\n\n    x_train.to_csv(x_train_path, index\
+        \ = False)\n    y_train.to_csv(y_train_path, index = False)\n    x_test.to_csv(x_test_path,\
+        \ index = False)\n    bike_list = '\\n'.join(bike_list)\n    print('check!')\n\
+        \    with open(bike_list_path, 'w') as txt:\n        txt.write(bike_list)\n\
+        \nimport argparse\n_parser = argparse.ArgumentParser(prog='Merge op', description='')\n\
+        _parser.add_argument(\"--region\", dest=\"region_path\", type=str, required=True,\
+        \ default=argparse.SUPPRESS)\n_parser.add_argument(\"--ddareungi\", dest=\"\
+        ddareungi_path\", type=str, required=True, default=argparse.SUPPRESS)\n_parser.add_argument(\"\
+        --weather\", dest=\"weather_path\", type=str, required=True, default=argparse.SUPPRESS)\n\
+        _parser.add_argument(\"--dust\", dest=\"dust_path\", type=str, required=True,\
+        \ default=argparse.SUPPRESS)\n_parser.add_argument(\"--deleted-path\", dest=\"\
+        deleted_path\", type=str, required=True, default=argparse.SUPPRESS)\n_parser.add_argument(\"\
+        --x-train\", dest=\"x_train_path\", type=_make_parent_dirs_and_return_path,\
+        \ required=True, default=argparse.SUPPRESS)\n_parser.add_argument(\"--y-train\"\
+        , dest=\"y_train_path\", type=_make_parent_dirs_and_return_path, required=True,\
+        \ default=argparse.SUPPRESS)\n_parser.add_argument(\"--x-test\", dest=\"x_test_path\"\
+        , type=_make_parent_dirs_and_return_path, required=True, default=argparse.SUPPRESS)\n\
+        _parser.add_argument(\"--bike-list\", dest=\"bike_list_path\", type=_make_parent_dirs_and_return_path,\
+        \ required=True, default=argparse.SUPPRESS)\n_parsed_args = vars(_parser.parse_args())\n\
+        \n_outputs = merge_op(**_parsed_args)\n"
+      image: 941102633028.dkr.ecr.ap-northeast-2.amazonaws.com/6team:es_ko_KST_XGH
+    inputs:
+      parameters:
+      - {name: check-diff-op-Output}
+      artifacts:
+      - {name: ddareungi-op-ddareungi, path: /tmp/inputs/ddareungi/data}
+      - {name: dust-op-dust, path: /tmp/inputs/dust/data}
+      - {name: region-op-region, path: /tmp/inputs/region/data}
+      - {name: weather-op-weather, path: /tmp/inputs/weather/data}
+    outputs:
+      artifacts:
+      - {name: merge-op-bike_list, path: /tmp/outputs/bike_list/data}
+      - {name: merge-op-x_test, path: /tmp/outputs/x_test/data}
+      - {name: merge-op-x_train, path: /tmp/outputs/x_train/data}
+      - {name: merge-op-y_train, path: /tmp/outputs/y_train/data}
+    metadata:
+      annotations: {pipelines.kubeflow.org/component_spec: '{"implementation": {"container":
+          {"args": ["--region", {"inputPath": "region"}, "--ddareungi", {"inputPath":
+          "ddareungi"}, "--weather", {"inputPath": "weather"}, "--dust", {"inputPath":
+          "dust"}, "--deleted-path", {"inputValue": "deleted_path"}, "--x-train",
+          {"outputPath": "x_train"}, "--y-train", {"outputPath": "y_train"}, "--x-test",
+          {"outputPath": "x_test"}, "--bike-list", {"outputPath": "bike_list"}], "command":
+          ["python3", "-u", "-c", "def _make_parent_dirs_and_return_path(file_path:
+          str):\n    import os\n    os.makedirs(os.path.dirname(file_path), exist_ok=True)\n    return
+          file_path\n\ndef merge_op(region_path , \n             ddareungi_path ,
+          \n             weather_path , \n             dust_path ,\n             deleted_path,
+          \n             x_train_path , \n             y_train_path , \n             x_test_path
+          , \n             bike_list_path ):\n    import pandas as pd\n    import
+          numpy as np\n    region_path = pd.read_csv(region_path)\n    ddareungi_path
+          = pd.read_csv(ddareungi_path)\n    weather_path = pd.read_csv(weather_path)\n    dust_path
+          = pd.read_csv(dust_path)\n    deleted_node = deleted_path\n\n    ddareng
+          = pd.merge(ddareungi_path, region_path, on=''\ub300\uc5ec\uc18c\ubc88\ud638'',how=''left'')\n    air_weather
+          = pd.merge(dust_path, weather_path, on = ''\uad8c\uc5ed\uba85'', how = ''left''
+          )\n    air_weather.rename(columns = {''\uad8c\uc5ed\uba85'':''\uc790\uce58\uad6c''},inplace=True)\n\n    model_data
+          = pd.merge(ddareng, air_weather, on=''\uc790\uce58\uad6c'',how=''left'')\n    if
+          len(deleted_node) != 0:\n        model_data = model_data[model_data.\ub300\uc5ec\uc18c\ubc88\ud638.isin(list(deleted_node))
+          == False]\n    model_data[''\ub300\uc5ec\uc18c\uc774\ub984''] = model_data[''\ub300\uc5ec\uc18c\uc774\ub984''].astype(''str'')\n    bike_list
+          = model_data.\ub300\uc5ec\uc18c\uc774\ub984.tolist()\n\n    model_data =
+          model_data.drop([\"\ub300\uc5ec\uc18c\ubc88\ud638\",\"\uc704\ub3c4\",\"\uacbd\ub3c4\",\"geometry\",\"\ub300\uc5ec\uc18c\uc774\ub984\"],axis=1)
+          \n\n    air_weather_columns = air_weather.columns.tolist()\n    geo_columns
+          = region_path.columns.tolist()\n    not_dareng_columns = air_weather_columns
+          + geo_columns\n    not_dareng_columns = set(not_dareng_columns) - set([''\ub300\uc5ec\uc18c\ubc88\ud638'',''\uc790\uce58\uad6c'',''geometry'',
+          ''\ub300\uc5ec\uc18c\uc774\ub984'', ''\uacbd\ub3c4'', ''\uc704\ub3c4''])\n\n    def
+          rename_col(df):\n        rename_columns_list = []\n        for i in df.columns.tolist():\n            try:\n                rename_columns_list.append(i.replace('':'',''\uc2dc''))\n            except:\n                rename_columns_list.append(i)\n        df.columns
+          = rename_columns_list\n        return df\n\n    x_train = model_data[ddareungi_path.columns.tolist()[1:-1]
+          + list(not_dareng_columns)]\n    x_train = rename_col(x_train)\n    y_train
+          = model_data[ddareungi_path.columns.tolist()[-1]]\n    y_train = y_train.rename(y_train.name.replace('':'',''\uc2dc''))\n    x_test
+          = model_data[ddareungi_path.columns.tolist()[2:] + list(not_dareng_columns)]\n    x_test
+          = rename_col(x_test)\n\n    x_train.to_csv(x_train_path, index = False)\n    y_train.to_csv(y_train_path,
+          index = False)\n    x_test.to_csv(x_test_path, index = False)\n    bike_list
+          = ''\\n''.join(bike_list)\n    print(''check!'')\n    with open(bike_list_path,
+          ''w'') as txt:\n        txt.write(bike_list)\n\nimport argparse\n_parser
+          = argparse.ArgumentParser(prog=''Merge op'', description='''')\n_parser.add_argument(\"--region\",
+          dest=\"region_path\", type=str, required=True, default=argparse.SUPPRESS)\n_parser.add_argument(\"--ddareungi\",
+          dest=\"ddareungi_path\", type=str, required=True, default=argparse.SUPPRESS)\n_parser.add_argument(\"--weather\",
+          dest=\"weather_path\", type=str, required=True, default=argparse.SUPPRESS)\n_parser.add_argument(\"--dust\",
+          dest=\"dust_path\", type=str, required=True, default=argparse.SUPPRESS)\n_parser.add_argument(\"--deleted-path\",
+          dest=\"deleted_path\", type=str, required=True, default=argparse.SUPPRESS)\n_parser.add_argument(\"--x-train\",
+          dest=\"x_train_path\", type=_make_parent_dirs_and_return_path, required=True,
+          default=argparse.SUPPRESS)\n_parser.add_argument(\"--y-train\", dest=\"y_train_path\",
+          type=_make_parent_dirs_and_return_path, required=True, default=argparse.SUPPRESS)\n_parser.add_argument(\"--x-test\",
+          dest=\"x_test_path\", type=_make_parent_dirs_and_return_path, required=True,
+          default=argparse.SUPPRESS)\n_parser.add_argument(\"--bike-list\", dest=\"bike_list_path\",
+          type=_make_parent_dirs_and_return_path, required=True, default=argparse.SUPPRESS)\n_parsed_args
+          = vars(_parser.parse_args())\n\n_outputs = merge_op(**_parsed_args)\n"],
+          "image": "941102633028.dkr.ecr.ap-northeast-2.amazonaws.com/6team:es_ko_KST_XGH"}},
+          "inputs": [{"name": "region", "type": "csv"}, {"name": "ddareungi", "type":
+          "csv"}, {"name": "weather", "type": "csv"}, {"name": "dust", "type": "csv"},
+          {"name": "deleted_path"}], "name": "Merge op", "outputs": [{"name": "x_train",
+          "type": "csv"}, {"name": "y_train", "type": "csv"}, {"name": "x_test", "type":
+          "csv"}, {"name": "bike_list", "type": "txt"}]}', pipelines.kubeflow.org/component_ref: '{}'}
+  - name: modeling-op
+    container:
+      args: [--x-train, /tmp/inputs/x_train/data, --y-train, /tmp/inputs/y_train/data,
+        --x-test, /tmp/inputs/x_test/data, --bike-list, /tmp/inputs/bike_list/data,
+        --result, /tmp/outputs/result/data]
+      command:
+      - python3
+      - -u
+      - -c
+      - "def _make_parent_dirs_and_return_path(file_path: str):\n    import os\n \
+        \   os.makedirs(os.path.dirname(file_path), exist_ok=True)\n    return file_path\n\
+        \ndef modeling_op(x_train_path, \n                y_train_path, \n       \
+        \         x_test_path, \n                bike_list_path, \n              \
+        \  result_path):\n    import pandas as pd\n    import numpy as np\n    from\
+        \ xgboost import XGBRegressor\n    import lightgbm as lgb\n\n    x_train =\
+        \ pd.read_csv(x_train_path)\n    y_train = pd.read_csv(y_train_path)\n   \
+        \ x_test = pd.read_csv(x_test_path)\n\n    with open(bike_list_path, 'r')\
+        \ as txt:\n        bike_list = txt.read()\n    bike_list = bike_list.split('\\\
+        n')\n\n    x_train_n = np.array(x_train)\n    y_train_n = np.array(y_train)\n\
+        \    x_test_n = np.array(x_test)\n\n    #ligthgbm \uBAA8\uB378\uC5D0 \uD30C\
+        \uB77C\uBBF8\uD130\uB85C boosting_type='dart' \uB123\uC5B4\uC8FC\uACE0 \uD559\
+        \uC2B5 \uD3C9\uAC00\uC9C0\uD45C\uB294 rmse\uB85C \uC124\uC815\n    lgbm =\
+        \ lgb.LGBMRegressor(random_state=2020,boosting_type='dart')\n    lgbm.fit(x_train,\
+        \ y_train,eval_metric='rmse')\n    simple_lgbm_pred = lgbm.predict(x_test)\n\
+        \n    #xgboost\uB294 boosting_type \uD30C\uB77C\uBBF8\uD130\uAC00 \uC874\uC7AC\
+        \uD558\uC9C0 \uC54A\uAE30\uB54C\uBB38\uC5D0 \uC5C6\uC774 \uD3C9\uAC00\uC9C0\
+        \uD45C\uB9CC rmse\uB85C \uC124\uC815.\n    xgb = XGBRegressor(random_state=2020)\n\
+        \    xgb.fit(x_train_n, y_train_n,eval_metric='rmse')\n    simple_xgb_pred\
+        \ = xgb.predict(x_test_n)\n\n    #\uCD5C\uC885\uC608\uCE21\uAC12\n    final_ensembled_prediction\
+        \ = (0.5*(simple_xgb_pred))+(0.5*(simple_lgbm_pred))\n    final_ensembled_prediction[final_ensembled_prediction\
+        \ < 0] = 0\n    final_ensembled_prediction = final_ensembled_prediction.round().astype(int)\n\
+        \n    final_df = pd.DataFrame({\"\uB300\uC5EC\uC18C\uC774\uB984\":bike_list,\
+        \ '\uC608\uCE21\uC794\uC5EC\uB300\uC218_10\uBD84':final_ensembled_prediction.tolist()})\n\
+        \    print(final_df.head())\n    final_df.to_csv(result_path, index = False)\n\
+        \nimport argparse\n_parser = argparse.ArgumentParser(prog='Modeling op', description='')\n\
+        _parser.add_argument(\"--x-train\", dest=\"x_train_path\", type=str, required=True,\
+        \ default=argparse.SUPPRESS)\n_parser.add_argument(\"--y-train\", dest=\"\
+        y_train_path\", type=str, required=True, default=argparse.SUPPRESS)\n_parser.add_argument(\"\
+        --x-test\", dest=\"x_test_path\", type=str, required=True, default=argparse.SUPPRESS)\n\
+        _parser.add_argument(\"--bike-list\", dest=\"bike_list_path\", type=str, required=True,\
+        \ default=argparse.SUPPRESS)\n_parser.add_argument(\"--result\", dest=\"result_path\"\
+        , type=_make_parent_dirs_and_return_path, required=True, default=argparse.SUPPRESS)\n\
+        _parsed_args = vars(_parser.parse_args())\n\n_outputs = modeling_op(**_parsed_args)\n"
+      image: 941102633028.dkr.ecr.ap-northeast-2.amazonaws.com/6team:es_ko_KST_XGH
+    inputs:
+      artifacts:
+      - {name: merge-op-bike_list, path: /tmp/inputs/bike_list/data}
+      - {name: merge-op-x_test, path: /tmp/inputs/x_test/data}
+      - {name: merge-op-x_train, path: /tmp/inputs/x_train/data}
+      - {name: merge-op-y_train, path: /tmp/inputs/y_train/data}
+    outputs:
+      artifacts:
+      - {name: modeling-op-result, path: /tmp/outputs/result/data}
+    metadata:
+      annotations: {pipelines.kubeflow.org/component_spec: '{"implementation": {"container":
+          {"args": ["--x-train", {"inputPath": "x_train"}, "--y-train", {"inputPath":
+          "y_train"}, "--x-test", {"inputPath": "x_test"}, "--bike-list", {"inputPath":
+          "bike_list"}, "--result", {"outputPath": "result"}], "command": ["python3",
+          "-u", "-c", "def _make_parent_dirs_and_return_path(file_path: str):\n    import
+          os\n    os.makedirs(os.path.dirname(file_path), exist_ok=True)\n    return
+          file_path\n\ndef modeling_op(x_train_path, \n                y_train_path,
+          \n                x_test_path, \n                bike_list_path, \n                result_path):\n    import
+          pandas as pd\n    import numpy as np\n    from xgboost import XGBRegressor\n    import
+          lightgbm as lgb\n\n    x_train = pd.read_csv(x_train_path)\n    y_train
+          = pd.read_csv(y_train_path)\n    x_test = pd.read_csv(x_test_path)\n\n    with
+          open(bike_list_path, ''r'') as txt:\n        bike_list = txt.read()\n    bike_list
+          = bike_list.split(''\\n'')\n\n    x_train_n = np.array(x_train)\n    y_train_n
+          = np.array(y_train)\n    x_test_n = np.array(x_test)\n\n    #ligthgbm \ubaa8\ub378\uc5d0
+          \ud30c\ub77c\ubbf8\ud130\ub85c boosting_type=''dart'' \ub123\uc5b4\uc8fc\uace0
+          \ud559\uc2b5 \ud3c9\uac00\uc9c0\ud45c\ub294 rmse\ub85c \uc124\uc815\n    lgbm
+          = lgb.LGBMRegressor(random_state=2020,boosting_type=''dart'')\n    lgbm.fit(x_train,
+          y_train,eval_metric=''rmse'')\n    simple_lgbm_pred = lgbm.predict(x_test)\n\n    #xgboost\ub294
+          boosting_type \ud30c\ub77c\ubbf8\ud130\uac00 \uc874\uc7ac\ud558\uc9c0 \uc54a\uae30\ub54c\ubb38\uc5d0
+          \uc5c6\uc774 \ud3c9\uac00\uc9c0\ud45c\ub9cc rmse\ub85c \uc124\uc815.\n    xgb
+          = XGBRegressor(random_state=2020)\n    xgb.fit(x_train_n, y_train_n,eval_metric=''rmse'')\n    simple_xgb_pred
+          = xgb.predict(x_test_n)\n\n    #\ucd5c\uc885\uc608\uce21\uac12\n    final_ensembled_prediction
+          = (0.5*(simple_xgb_pred))+(0.5*(simple_lgbm_pred))\n    final_ensembled_prediction[final_ensembled_prediction
+          < 0] = 0\n    final_ensembled_prediction = final_ensembled_prediction.round().astype(int)\n\n    final_df
+          = pd.DataFrame({\"\ub300\uc5ec\uc18c\uc774\ub984\":bike_list, ''\uc608\uce21\uc794\uc5ec\ub300\uc218_10\ubd84'':final_ensembled_prediction.tolist()})\n    print(final_df.head())\n    final_df.to_csv(result_path,
+          index = False)\n\nimport argparse\n_parser = argparse.ArgumentParser(prog=''Modeling
+          op'', description='''')\n_parser.add_argument(\"--x-train\", dest=\"x_train_path\",
+          type=str, required=True, default=argparse.SUPPRESS)\n_parser.add_argument(\"--y-train\",
+          dest=\"y_train_path\", type=str, required=True, default=argparse.SUPPRESS)\n_parser.add_argument(\"--x-test\",
+          dest=\"x_test_path\", type=str, required=True, default=argparse.SUPPRESS)\n_parser.add_argument(\"--bike-list\",
+          dest=\"bike_list_path\", type=str, required=True, default=argparse.SUPPRESS)\n_parser.add_argument(\"--result\",
+          dest=\"result_path\", type=_make_parent_dirs_and_return_path, required=True,
+          default=argparse.SUPPRESS)\n_parsed_args = vars(_parser.parse_args())\n\n_outputs
+          = modeling_op(**_parsed_args)\n"], "image": "941102633028.dkr.ecr.ap-northeast-2.amazonaws.com/6team:es_ko_KST_XGH"}},
+          "inputs": [{"name": "x_train", "type": "csv"}, {"name": "y_train", "type":
+          "csv"}, {"name": "x_test", "type": "csv"}, {"name": "bike_list", "type":
+          "txt"}], "name": "Modeling op", "outputs": [{"name": "result", "type": "csv"}]}',
+        pipelines.kubeflow.org/component_ref: '{}'}
+  - name: region-op
+    container:
+      args: [--now, /tmp/inputs/now/data, --new, /tmp/inputs/new/data, --bike-len,
+        /tmp/inputs/bike_len/data, --deleted-path, '{{inputs.parameters.check-diff-op-Output}}',
+        --region, /tmp/outputs/region/data]
+      command:
+      - python3
+      - -u
+      - -c
+      - "def _make_parent_dirs_and_return_path(file_path: str):\n    import os\n \
+        \   os.makedirs(os.path.dirname(file_path), exist_ok=True)\n    return file_path\n\
+        \ndef region_op(now_path ,\n              new_path ,\n              bike_len_path\
+        \ ,\n              region_path , \n              deleted_path):\n    import\
+        \ pandas as pd\n    import geopandas as gpd\n    import json\n    from shapely.geometry\
+        \ import Point, Polygon, LineString, MultiLineString   \n    import warnings\n\
+        \    warnings.filterwarnings(action='ignore') \n    now_path = pd.read_csv(now_path)\n\
+        \    new_path = pd.read_csv(new_path)\n    bike_len_path = pd.read_csv(bike_len_path)\n\
+        \    deleted_path = deleted_path\n    base_df = pd.read_csv('./all_all.csv')\n\
+        \    base_df.drop(['\uC77C\uC2DC','\uAC70\uCE58\uC728','\uAC70\uCE58\uB300\
+        \uC218','\uB300\uC5EC\uC18Cid','\uC8FC\uC18C','\uC794\uC5EC\uB300\uC218'],axis=1,inplace=True)\n\
+        \    base_df.reset_index(drop=True,inplace=True)\n\n    def in400m(bike_geo,\
+        \ another_geo):\n\n        total_total = pd.DataFrame()\n        bike_loc_list\
+        \ = bike_geo.\uB300\uC5EC\uC18C\uBC88\uD638.unique().tolist()\n\n        for\
+        \ bike_num in bike_loc_list:\n            data = bike_geo[bike_geo.\uB300\uC5EC\
+        \uC18C\uBC88\uD638 == bike_num]\n            data_b = data.buffer(1.0247175113158795e-05*400)\n\
+        \            df = data_b\n\n            bk_to_another_list = []\n        \
+        \    for i in range(len(another_geo)):\n                if df.geometry.contains(another_geo.loc[i,'geometry']).sum()!=0:\n\
+        \                    bk_to_another_list.append(1)\n                elif df.geometry.contains(another_geo.loc[i,'geometry']).sum()==0:\n\
+        \                    bk_to_another_list.append(0)\n\n            total = pd.DataFrame({'\uAC70\
+        \uCE58\uC18C\uBC94\uC704\uD3EC\uD568\uC5EC\uBD80':bk_to_another_list})\n \
+        \           total['\uAC70\uCE58\uC18C'] = bike_num\n            total_total\
+        \ = total_total.append(total)\n\n        count_df = total_total.groupby('\uAC70\
+        \uCE58\uC18C',as_index=False).\uAC70\uCE58\uC18C\uBC94\uC704\uD3EC\uD568\uC5EC\
+        \uBD80.sum()\n        return count_df[['\uAC70\uCE58\uC18C','\uAC70\uCE58\uC18C\
+        \uBC94\uC704\uD3EC\uD568\uC5EC\uBD80']]\n\n    def in400_garosu_v(bike_geo):\n\
+        \        garosu = gpd.read_file('./Garosugil.csv')\n        garosu.\uAC00\uB85C\
+        \uC218\uAE38\uAE38\uC774 = garosu.\uAC00\uB85C\uC218\uAE38\uAE38\uC774.astype(float)\n\
+        \        garosu = garosu[garosu.\uAC00\uB85C\uC218\uAE38\uAE38\uC774 > 3.6]\n\
+        \        garosu['\uAC00\uB85C\uC218\uAE38\uC885\uB8CC\uC704\uB3C4'] = garosu.\uAC00\
+        \uB85C\uC218\uAE38\uC885\uB8CC\uC704\uB3C4.astype(float)\n        garosu['\uAC00\
+        \uB85C\uC218\uAE38\uC885\uB8CC\uACBD\uB3C4'] = garosu.\uAC00\uB85C\uC218\uAE38\
+        \uC885\uB8CC\uACBD\uB3C4.astype(float)\n\n        garosu['\uAC00\uB85C\uC218\
+        \uAE38\uC2DC\uC791\uC704\uB3C4'] = garosu.\uAC00\uB85C\uC218\uAE38\uC2DC\uC791\
+        \uC704\uB3C4.astype(float)\n        garosu['\uAC00\uB85C\uC218\uAE38\uC2DC\
+        \uC791\uACBD\uB3C4'] = garosu.\uAC00\uB85C\uC218\uAE38\uC2DC\uC791\uACBD\uB3C4\
+        .astype(float)\n\n        garosu = garosu[(garosu.\uAC00\uB85C\uC218\uAE38\
+        \uC885\uB8CC\uC704\uB3C4 < 37.413294) == False]\n\n        garosu = garosu[(garosu.\uAC00\
+        \uB85C\uC218\uAE38\uC885\uB8CC\uC704\uB3C4 > 37.715133)==False]\n        garosu.drop_duplicates(keep='first',\
+        \ inplace=True)\n        garosu['geometry_1'] = garosu.apply(lambda row: Point(row['\uAC00\
+        \uB85C\uC218\uAE38\uC2DC\uC791\uACBD\uB3C4'], row['\uAC00\uB85C\uC218\uAE38\
+        \uC2DC\uC791\uC704\uB3C4']), axis=1)\n\n        garosu['geometry_2'] = garosu.apply(lambda\
+        \ row: Point(row['\uAC00\uB85C\uC218\uAE38\uC885\uB8CC\uACBD\uB3C4'], row['\uAC00\
+        \uB85C\uC218\uAE38\uC885\uB8CC\uC704\uB3C4']), axis=1)\n\n        garosu['geometry']\
+        \ = garosu.apply(lambda row: LineString([row['geometry_1'], row['geometry_2']]),\
+        \ axis=1)\n\n        for garosugil in garosu.\uAC00\uB85C\uC218\uAE38\uBA85\
+        .unique().tolist():\n            if len(garosu[garosu.\uAC00\uB85C\uC218\uAE38\
+        \uBA85 == garosugil]) >1:\n                df = garosu[garosu.\uAC00\uB85C\
+        \uC218\uAE38\uBA85 == garosugil].reset_index(drop=True)\n                garosu.loc[garosu.\uAC00\
+        \uB85C\uC218\uAE38\uBA85 == garosugil,'geometry'] = garosu.apply(lambda x:\
+        \ MultiLineString(df.geometry.values) if x['\uAC00\uB85C\uC218\uAE38\uBA85\
+        ']==garosugil else x['\uAC00\uB85C\uC218\uAE38\uBA85'], axis=1)\n\n      \
+        \  garosu.drop_duplicates(['geometry'],keep='first',inplace=True)\n      \
+        \  garosu.reset_index(drop=True,inplace=True)\n\n        total_total_garosu\
+        \ = pd.DataFrame()\n        bike_loc_list = bike_geo.\uB300\uC5EC\uC18C\uBC88\
+        \uD638.unique().tolist()\n        garosu_unique_list= garosu.\uAC00\uB85C\uC218\
+        \uAE38\uBA85.tolist()\n        for bike_num in bike_loc_list:\n          \
+        \  locals()['bike_'+f'{bike_num}'] = bike_geo[bike_geo.\uB300\uC5EC\uC18C\uBC88\
+        \uD638 == bike_num]\n            locals()['bike_'+f'{bike_num}'+'_b'] = locals()['bike_'+f'{bike_num}'].buffer(1.0247175113158795e-05*400)\n\
+        \            df = locals()['bike_'+f'{bike_num}'+'_b']\n\n            bk_to_garosu_list\
+        \ = []\n            for i in range(len(garosu)):\n                if df.geometry.intersects(garosu.loc[i,'geometry']).sum()!=0:\n\
+        \                    bk_to_garosu_list.append(1)\n                elif df.geometry.intersects(garosu.loc[i,'geometry']).sum()==0:\n\
+        \                    bk_to_garosu_list.append(0)\n\n            total = pd.DataFrame({'\uAC70\
+        \uCE58\uC18C\uBC94\uC704\uD3EC\uD568\uC5EC\uBD80':bk_to_garosu_list})\n  \
+        \          total['\uAC70\uCE58\uC18C'] = bike_num\n            total_total_garosu\
+        \ = total_total_garosu.append(total)\n        count_df = total_total_garosu.groupby('\uAC70\
+        \uCE58\uC18C',as_index=False).\uAC70\uCE58\uC18C\uBC94\uC704\uD3EC\uD568\uC5EC\
+        \uBD80.sum()\n        return count_df     \n\n    def df_concat_in400(df,all_df):\n\
+        \n        df['geometry'] = df.apply(lambda row: Point(row['\uACBD\uB3C4'],\
+        \ row['\uC704\uB3C4']), axis=1)\n        df = gpd.GeoDataFrame(df, crs='epsg:4326',\
+        \ geometry='geometry')\n\n        all_df['geometry'] = all_df.apply(lambda\
+        \ row: Point(row['\uACBD\uB3C4'], row['\uC704\uB3C4']), axis=1)\n        all_df\
+        \ = gpd.GeoDataFrame(all_df, crs='epsg:4326', geometry='geometry')\n\n   \
+        \     market = pd.read_csv('./\uC804\uD1B5\uC2DC\uC7A5\uC804\uCC98\uB9AC\uD6C4\
+        .csv')\n        market['geometry'] = market.apply(lambda row: Point(row['\uACBD\
+        \uB3C4'], row['\uC704\uB3C4']), axis=1)\n        market_geo = gpd.GeoDataFrame(market,\
+        \ crs='epsg:4326', geometry='geometry')\n        #market_geo.to_csv('./market_geo.csv',index=False)\n\
+        \n        park = pd.read_csv('./\uACF5\uC6D0\uC804\uCC98\uB9AC\uD6C4.csv')\n\
+        \        park['geometry'] = park.apply(lambda row: Point(row['\uACBD\uB3C4\
+        '], row['\uC704\uB3C4']), axis=1)\n        park_geo = gpd.GeoDataFrame(park,\
+        \ crs='epsg:4326', geometry='geometry')\n        #park_geo.to_csv('./park_geo.csv',index=False)\n\
+        \n        subway = pd.read_csv('./\uC9C0\uD558\uCCA0\uC804\uCC98\uB9AC\uD6C4\
+        .csv')\n        subway['geometry'] = subway.apply(lambda row: Point(row['\uACBD\
+        \uB3C4'], row['\uC704\uB3C4']), axis=1)\n        subway_geo = gpd.GeoDataFrame(subway,\
+        \ crs='epsg:4326', geometry='geometry')\n        #subway_geo.to_csv('./subway_geo.csv',index=False)\n\
+        \n        school = pd.read_csv('./\uC911\uACE0\uB4F1\uB300(\uC6D0).csv')\n\
+        \        school['geometry'] = school.apply(lambda row: Point(row['\uACBD\uB3C4\
+        '], row['\uC704\uB3C4']), axis=1)\n        school_geo = gpd.GeoDataFrame(school,\
+        \ crs='epsg:4326', geometry='geometry')\n        #school_geo.to_csv('./school_geo.csv',index=False)\n\
+        \n        culture = pd.read_csv('./\uBB38\uD654\uACF5\uAC04\uC804\uCC98\uB9AC\
+        \uD6C4.csv')\n        culture['geometry'] = culture.apply(lambda row: Point(row['\uACBD\
+        \uB3C4'], row['\uC704\uB3C4']), axis=1)\n        culture_geo = gpd.GeoDataFrame(culture,\
+        \ crs='epsg:4326', geometry='geometry')\n        #culture_geo.to_csv('./culture_place_geo.csv',index=False)\n\
+        \n        bus = pd.read_csv('./bus.csv')\n        bus['geometry'] = bus.apply(lambda\
+        \ row: Point(row['\uACBD\uB3C4'], row['\uC704\uB3C4']), axis=1)\n        bus_geo\
+        \ = gpd.GeoDataFrame(bus, crs='epsg:4326', geometry='geometry')\n        #bus_geo.to_csv('./bus_geo.csv',index=False)\n\
+        \n        ######### \uCD94\uAC00 #########\n        with open('./hangang.json',\
+        \ 'r') as json_file:\n            tmp = json.load(json_file)\n        tmp\
+        \ = gpd.read_file(tmp)\n        #\uD55C\uAC15\uC758 \uB3C4\uB85C \uC120\uC744\
+        \ buffer\uC744 \uD1B5\uD574 400m \uBC94\uC704\uB97C \uC900\uB2E4.\n      \
+        \  tmp['geometry'] = tmp.buffer(1.0247175113158795e-05*400)\n        #400m\
+        \ \uB298\uC5B4\uB09C \uD55C\uAC15\uB3C4\uB85C \uBC94\uC704 \uC548\uC5D0 \uB530\
+        \uB989\uC774\uAC00 \uD3EC\uD568\uB418\uC5B4\uC788\uB294\uC9C0 \uC5EC\uBD80\
+        \uB97C \uD310\uBCC4\n        hangan_bike_loc_list = []\n        for i in range(len(df)):\n\
+        \            if tmp.geometry.contains(df.loc[i,'geometry']).sum()!=0:\n  \
+        \              hangan_bike_loc_list.append(1)\n            elif tmp.geometry.contains(df.loc[i,'geometry']).sum()==0:\n\
+        \                hangan_bike_loc_list.append(0)\n        ######### \uCD94\uAC00\
+        \ #########\n\n        bike_count = in400m(df, all_df)\n        bike_count.columns\
+        \ = ['\uB300\uC5EC\uC18C\uBC88\uD638','in400_bike']\n\n        market_count\
+        \ = in400m(df, market_geo)\n        market_count.columns = ['\uB300\uC5EC\uC18C\
+        \uBC88\uD638','in400_market']\n\n        park_count = in400m(df, park_geo)\n\
+        \        park_count.columns = ['\uB300\uC5EC\uC18C\uBC88\uD638','in400_park']\n\
+        \n        subway_count = in400m(df, subway_geo)\n        subway_count.columns\
+        \ = ['\uB300\uC5EC\uC18C\uBC88\uD638','in400_subway']\n\n        school_count\
+        \ = in400m(df, school_geo)\n        school_count.columns = ['\uB300\uC5EC\uC18C\
+        \uBC88\uD638','in400_school']\n\n        culture_count = in400m(df, culture_geo)\n\
+        \        culture_count.columns = ['\uB300\uC5EC\uC18C\uBC88\uD638','in400_culture']\n\
+        \n        bus_count = in400m(df, bus_geo)\n        bus_count.columns = ['\uB300\
+        \uC5EC\uC18C\uBC88\uD638','in400_bus']\n\n        garosu_count = in400_garosu_v(df)\n\
+        \        garosu_count.columns = ['\uB300\uC5EC\uC18C\uBC88\uD638','in400_garosu']\
+        \                                   \n\n        bike_count['in400_market']\
+        \ = market_count['in400_market']\n        bike_count['in400_park'] = park_count[\"\
+        in400_park\"]\n        bike_count['in400_subway'] = subway_count['in400_subway']\n\
+        \        bike_count['in400_school'] = school_count['in400_school']\n     \
+        \   bike_count['in400_culture'] = culture_count['in400_culture']\n       \
+        \ bike_count['in400_bus'] = bus_count['in400_bus']\n        bike_count['in400_garosu']\
+        \ = garosu_count['in400_garosu']                                \n       \
+        \ bike_count['in400_hangang'] = hangan_bike_loc_list\n        return bike_count\n\
+        \n    bike_count = df_concat_in400(new_path,now_path)\n    bike = pd.concat([bike_count,\
+        \ bike_len_path],axis=1)\n    new = pd.merge(new_path,bike, on='\uB300\uC5EC\
+        \uC18C\uBC88\uD638', how=\"left\")\n    jachigu = pd.read_csv('./jachigu.csv')\n\
+        \    new_jachigu_plus = pd.merge(new,jachigu,on='\uC790\uCE58\uAD6C',how='left')\n\
+        \    new_jachigu_plus = new_jachigu_plus[base_df.columns.tolist()]\n    now_final\
+        \ = pd.concat([base_df,new_jachigu_plus],axis=0)\n\n    if len(deleted_path)\
+        \ != 0:\n        now_final = now_final[now_final.\uB300\uC5EC\uC18C\uBC88\uD638\
+        .isin(list(deleted_path)) == False]\n    now_final.\uC138\uB300\uC218 = now_final.\uC138\
+        \uB300\uC218.apply(lambda x : int(x.replace(',','')))\n    now_final.\uAC70\
+        \uC8FC\uC790\uCD1D\uC778\uAD6C\uC218 = now_final.\uAC70\uC8FC\uC790\uCD1D\uC778\
+        \uAD6C\uC218.apply(lambda x : int(x.replace(',','')))\n    now_final['20s']\
+        \ = now_final['20s'].apply(lambda x : int(x.replace(',','')))\n    now_final['30s']\
+        \ = now_final['30s'].apply(lambda x : int(x.replace(',','')))\n\n    now_final.to_csv(region_path,\
+        \ index = False)\n\nimport argparse\n_parser = argparse.ArgumentParser(prog='Region\
+        \ op', description='')\n_parser.add_argument(\"--now\", dest=\"now_path\"\
+        , type=str, required=True, default=argparse.SUPPRESS)\n_parser.add_argument(\"\
+        --new\", dest=\"new_path\", type=str, required=True, default=argparse.SUPPRESS)\n\
+        _parser.add_argument(\"--bike-len\", dest=\"bike_len_path\", type=str, required=True,\
+        \ default=argparse.SUPPRESS)\n_parser.add_argument(\"--deleted-path\", dest=\"\
+        deleted_path\", type=str, required=True, default=argparse.SUPPRESS)\n_parser.add_argument(\"\
+        --region\", dest=\"region_path\", type=_make_parent_dirs_and_return_path,\
+        \ required=True, default=argparse.SUPPRESS)\n_parsed_args = vars(_parser.parse_args())\n\
+        \n_outputs = region_op(**_parsed_args)\n"
+      image: 941102633028.dkr.ecr.ap-northeast-2.amazonaws.com/6team:es_ko_KST_XGH
+    inputs:
+      parameters:
+      - {name: check-diff-op-Output}
+      artifacts:
+      - {name: bike-len-op-bike_len, path: /tmp/inputs/bike_len/data}
+      - {name: check-diff-op-new, path: /tmp/inputs/new/data}
+      - {name: check-diff-op-now, path: /tmp/inputs/now/data}
+    outputs:
+      artifacts:
+      - {name: region-op-region, path: /tmp/outputs/region/data}
+    metadata:
+      annotations: {pipelines.kubeflow.org/component_spec: '{"implementation": {"container":
+          {"args": ["--now", {"inputPath": "now"}, "--new", {"inputPath": "new"},
+          "--bike-len", {"inputPath": "bike_len"}, "--deleted-path", {"inputValue":
+          "deleted_path"}, "--region", {"outputPath": "region"}], "command": ["python3",
+          "-u", "-c", "def _make_parent_dirs_and_return_path(file_path: str):\n    import
+          os\n    os.makedirs(os.path.dirname(file_path), exist_ok=True)\n    return
+          file_path\n\ndef region_op(now_path ,\n              new_path ,\n              bike_len_path
+          ,\n              region_path , \n              deleted_path):\n    import
+          pandas as pd\n    import geopandas as gpd\n    import json\n    from shapely.geometry
+          import Point, Polygon, LineString, MultiLineString   \n    import warnings\n    warnings.filterwarnings(action=''ignore'')
+          \n    now_path = pd.read_csv(now_path)\n    new_path = pd.read_csv(new_path)\n    bike_len_path
+          = pd.read_csv(bike_len_path)\n    deleted_path = deleted_path\n    base_df
+          = pd.read_csv(''./all_all.csv'')\n    base_df.drop([''\uc77c\uc2dc'',''\uac70\uce58\uc728'',''\uac70\uce58\ub300\uc218'',''\ub300\uc5ec\uc18cid'',''\uc8fc\uc18c'',''\uc794\uc5ec\ub300\uc218''],axis=1,inplace=True)\n    base_df.reset_index(drop=True,inplace=True)\n\n    def
+          in400m(bike_geo, another_geo):\n\n        total_total = pd.DataFrame()\n        bike_loc_list
+          = bike_geo.\ub300\uc5ec\uc18c\ubc88\ud638.unique().tolist()\n\n        for
+          bike_num in bike_loc_list:\n            data = bike_geo[bike_geo.\ub300\uc5ec\uc18c\ubc88\ud638
+          == bike_num]\n            data_b = data.buffer(1.0247175113158795e-05*400)\n            df
+          = data_b\n\n            bk_to_another_list = []\n            for i in range(len(another_geo)):\n                if
+          df.geometry.contains(another_geo.loc[i,''geometry'']).sum()!=0:\n                    bk_to_another_list.append(1)\n                elif
+          df.geometry.contains(another_geo.loc[i,''geometry'']).sum()==0:\n                    bk_to_another_list.append(0)\n\n            total
+          = pd.DataFrame({''\uac70\uce58\uc18c\ubc94\uc704\ud3ec\ud568\uc5ec\ubd80'':bk_to_another_list})\n            total[''\uac70\uce58\uc18c'']
+          = bike_num\n            total_total = total_total.append(total)\n\n        count_df
+          = total_total.groupby(''\uac70\uce58\uc18c'',as_index=False).\uac70\uce58\uc18c\ubc94\uc704\ud3ec\ud568\uc5ec\ubd80.sum()\n        return
+          count_df[[''\uac70\uce58\uc18c'',''\uac70\uce58\uc18c\ubc94\uc704\ud3ec\ud568\uc5ec\ubd80'']]\n\n    def
+          in400_garosu_v(bike_geo):\n        garosu = gpd.read_file(''./Garosugil.csv'')\n        garosu.\uac00\ub85c\uc218\uae38\uae38\uc774
+          = garosu.\uac00\ub85c\uc218\uae38\uae38\uc774.astype(float)\n        garosu
+          = garosu[garosu.\uac00\ub85c\uc218\uae38\uae38\uc774 > 3.6]\n        garosu[''\uac00\ub85c\uc218\uae38\uc885\ub8cc\uc704\ub3c4'']
+          = garosu.\uac00\ub85c\uc218\uae38\uc885\ub8cc\uc704\ub3c4.astype(float)\n        garosu[''\uac00\ub85c\uc218\uae38\uc885\ub8cc\uacbd\ub3c4'']
+          = garosu.\uac00\ub85c\uc218\uae38\uc885\ub8cc\uacbd\ub3c4.astype(float)\n\n        garosu[''\uac00\ub85c\uc218\uae38\uc2dc\uc791\uc704\ub3c4'']
+          = garosu.\uac00\ub85c\uc218\uae38\uc2dc\uc791\uc704\ub3c4.astype(float)\n        garosu[''\uac00\ub85c\uc218\uae38\uc2dc\uc791\uacbd\ub3c4'']
+          = garosu.\uac00\ub85c\uc218\uae38\uc2dc\uc791\uacbd\ub3c4.astype(float)\n\n        garosu
+          = garosu[(garosu.\uac00\ub85c\uc218\uae38\uc885\ub8cc\uc704\ub3c4 < 37.413294)
+          == False]\n\n        garosu = garosu[(garosu.\uac00\ub85c\uc218\uae38\uc885\ub8cc\uc704\ub3c4
+          > 37.715133)==False]\n        garosu.drop_duplicates(keep=''first'', inplace=True)\n        garosu[''geometry_1'']
+          = garosu.apply(lambda row: Point(row[''\uac00\ub85c\uc218\uae38\uc2dc\uc791\uacbd\ub3c4''],
+          row[''\uac00\ub85c\uc218\uae38\uc2dc\uc791\uc704\ub3c4'']), axis=1)\n\n        garosu[''geometry_2'']
+          = garosu.apply(lambda row: Point(row[''\uac00\ub85c\uc218\uae38\uc885\ub8cc\uacbd\ub3c4''],
+          row[''\uac00\ub85c\uc218\uae38\uc885\ub8cc\uc704\ub3c4'']), axis=1)\n\n        garosu[''geometry'']
+          = garosu.apply(lambda row: LineString([row[''geometry_1''], row[''geometry_2'']]),
+          axis=1)\n\n        for garosugil in garosu.\uac00\ub85c\uc218\uae38\uba85.unique().tolist():\n            if
+          len(garosu[garosu.\uac00\ub85c\uc218\uae38\uba85 == garosugil]) >1:\n                df
+          = garosu[garosu.\uac00\ub85c\uc218\uae38\uba85 == garosugil].reset_index(drop=True)\n                garosu.loc[garosu.\uac00\ub85c\uc218\uae38\uba85
+          == garosugil,''geometry''] = garosu.apply(lambda x: MultiLineString(df.geometry.values)
+          if x[''\uac00\ub85c\uc218\uae38\uba85'']==garosugil else x[''\uac00\ub85c\uc218\uae38\uba85''],
+          axis=1)\n\n        garosu.drop_duplicates([''geometry''],keep=''first'',inplace=True)\n        garosu.reset_index(drop=True,inplace=True)\n\n        total_total_garosu
+          = pd.DataFrame()\n        bike_loc_list = bike_geo.\ub300\uc5ec\uc18c\ubc88\ud638.unique().tolist()\n        garosu_unique_list=
+          garosu.\uac00\ub85c\uc218\uae38\uba85.tolist()\n        for bike_num in
+          bike_loc_list:\n            locals()[''bike_''+f''{bike_num}''] = bike_geo[bike_geo.\ub300\uc5ec\uc18c\ubc88\ud638
+          == bike_num]\n            locals()[''bike_''+f''{bike_num}''+''_b''] = locals()[''bike_''+f''{bike_num}''].buffer(1.0247175113158795e-05*400)\n            df
+          = locals()[''bike_''+f''{bike_num}''+''_b'']\n\n            bk_to_garosu_list
+          = []\n            for i in range(len(garosu)):\n                if df.geometry.intersects(garosu.loc[i,''geometry'']).sum()!=0:\n                    bk_to_garosu_list.append(1)\n                elif
+          df.geometry.intersects(garosu.loc[i,''geometry'']).sum()==0:\n                    bk_to_garosu_list.append(0)\n\n            total
+          = pd.DataFrame({''\uac70\uce58\uc18c\ubc94\uc704\ud3ec\ud568\uc5ec\ubd80'':bk_to_garosu_list})\n            total[''\uac70\uce58\uc18c'']
+          = bike_num\n            total_total_garosu = total_total_garosu.append(total)\n        count_df
+          = total_total_garosu.groupby(''\uac70\uce58\uc18c'',as_index=False).\uac70\uce58\uc18c\ubc94\uc704\ud3ec\ud568\uc5ec\ubd80.sum()\n        return
+          count_df     \n\n    def df_concat_in400(df,all_df):\n\n        df[''geometry'']
+          = df.apply(lambda row: Point(row[''\uacbd\ub3c4''], row[''\uc704\ub3c4'']),
+          axis=1)\n        df = gpd.GeoDataFrame(df, crs=''epsg:4326'', geometry=''geometry'')\n\n        all_df[''geometry'']
+          = all_df.apply(lambda row: Point(row[''\uacbd\ub3c4''], row[''\uc704\ub3c4'']),
+          axis=1)\n        all_df = gpd.GeoDataFrame(all_df, crs=''epsg:4326'', geometry=''geometry'')\n\n        market
+          = pd.read_csv(''./\uc804\ud1b5\uc2dc\uc7a5\uc804\ucc98\ub9ac\ud6c4.csv'')\n        market[''geometry'']
+          = market.apply(lambda row: Point(row[''\uacbd\ub3c4''], row[''\uc704\ub3c4'']),
+          axis=1)\n        market_geo = gpd.GeoDataFrame(market, crs=''epsg:4326'',
+          geometry=''geometry'')\n        #market_geo.to_csv(''./market_geo.csv'',index=False)\n\n        park
+          = pd.read_csv(''./\uacf5\uc6d0\uc804\ucc98\ub9ac\ud6c4.csv'')\n        park[''geometry'']
+          = park.apply(lambda row: Point(row[''\uacbd\ub3c4''], row[''\uc704\ub3c4'']),
+          axis=1)\n        park_geo = gpd.GeoDataFrame(park, crs=''epsg:4326'', geometry=''geometry'')\n        #park_geo.to_csv(''./park_geo.csv'',index=False)\n\n        subway
+          = pd.read_csv(''./\uc9c0\ud558\ucca0\uc804\ucc98\ub9ac\ud6c4.csv'')\n        subway[''geometry'']
+          = subway.apply(lambda row: Point(row[''\uacbd\ub3c4''], row[''\uc704\ub3c4'']),
+          axis=1)\n        subway_geo = gpd.GeoDataFrame(subway, crs=''epsg:4326'',
+          geometry=''geometry'')\n        #subway_geo.to_csv(''./subway_geo.csv'',index=False)\n\n        school
+          = pd.read_csv(''./\uc911\uace0\ub4f1\ub300(\uc6d0).csv'')\n        school[''geometry'']
+          = school.apply(lambda row: Point(row[''\uacbd\ub3c4''], row[''\uc704\ub3c4'']),
+          axis=1)\n        school_geo = gpd.GeoDataFrame(school, crs=''epsg:4326'',
+          geometry=''geometry'')\n        #school_geo.to_csv(''./school_geo.csv'',index=False)\n\n        culture
+          = pd.read_csv(''./\ubb38\ud654\uacf5\uac04\uc804\ucc98\ub9ac\ud6c4.csv'')\n        culture[''geometry'']
+          = culture.apply(lambda row: Point(row[''\uacbd\ub3c4''], row[''\uc704\ub3c4'']),
+          axis=1)\n        culture_geo = gpd.GeoDataFrame(culture, crs=''epsg:4326'',
+          geometry=''geometry'')\n        #culture_geo.to_csv(''./culture_place_geo.csv'',index=False)\n\n        bus
+          = pd.read_csv(''./bus.csv'')\n        bus[''geometry''] = bus.apply(lambda
+          row: Point(row[''\uacbd\ub3c4''], row[''\uc704\ub3c4'']), axis=1)\n        bus_geo
+          = gpd.GeoDataFrame(bus, crs=''epsg:4326'', geometry=''geometry'')\n        #bus_geo.to_csv(''./bus_geo.csv'',index=False)\n\n        #########
+          \ucd94\uac00 #########\n        with open(''./hangang.json'', ''r'') as
+          json_file:\n            tmp = json.load(json_file)\n        tmp = gpd.read_file(tmp)\n        #\ud55c\uac15\uc758
+          \ub3c4\ub85c \uc120\uc744 buffer\uc744 \ud1b5\ud574 400m \ubc94\uc704\ub97c
+          \uc900\ub2e4.\n        tmp[''geometry''] = tmp.buffer(1.0247175113158795e-05*400)\n        #400m
+          \ub298\uc5b4\ub09c \ud55c\uac15\ub3c4\ub85c \ubc94\uc704 \uc548\uc5d0 \ub530\ub989\uc774\uac00
+          \ud3ec\ud568\ub418\uc5b4\uc788\ub294\uc9c0 \uc5ec\ubd80\ub97c \ud310\ubcc4\n        hangan_bike_loc_list
+          = []\n        for i in range(len(df)):\n            if tmp.geometry.contains(df.loc[i,''geometry'']).sum()!=0:\n                hangan_bike_loc_list.append(1)\n            elif
+          tmp.geometry.contains(df.loc[i,''geometry'']).sum()==0:\n                hangan_bike_loc_list.append(0)\n        #########
+          \ucd94\uac00 #########\n\n        bike_count = in400m(df, all_df)\n        bike_count.columns
+          = [''\ub300\uc5ec\uc18c\ubc88\ud638'',''in400_bike'']\n\n        market_count
+          = in400m(df, market_geo)\n        market_count.columns = [''\ub300\uc5ec\uc18c\ubc88\ud638'',''in400_market'']\n\n        park_count
+          = in400m(df, park_geo)\n        park_count.columns = [''\ub300\uc5ec\uc18c\ubc88\ud638'',''in400_park'']\n\n        subway_count
+          = in400m(df, subway_geo)\n        subway_count.columns = [''\ub300\uc5ec\uc18c\ubc88\ud638'',''in400_subway'']\n\n        school_count
+          = in400m(df, school_geo)\n        school_count.columns = [''\ub300\uc5ec\uc18c\ubc88\ud638'',''in400_school'']\n\n        culture_count
+          = in400m(df, culture_geo)\n        culture_count.columns = [''\ub300\uc5ec\uc18c\ubc88\ud638'',''in400_culture'']\n\n        bus_count
+          = in400m(df, bus_geo)\n        bus_count.columns = [''\ub300\uc5ec\uc18c\ubc88\ud638'',''in400_bus'']\n\n        garosu_count
+          = in400_garosu_v(df)\n        garosu_count.columns = [''\ub300\uc5ec\uc18c\ubc88\ud638'',''in400_garosu'']                                   \n\n        bike_count[''in400_market'']
+          = market_count[''in400_market'']\n        bike_count[''in400_park''] = park_count[\"in400_park\"]\n        bike_count[''in400_subway'']
+          = subway_count[''in400_subway'']\n        bike_count[''in400_school''] =
+          school_count[''in400_school'']\n        bike_count[''in400_culture''] =
+          culture_count[''in400_culture'']\n        bike_count[''in400_bus''] = bus_count[''in400_bus'']\n        bike_count[''in400_garosu'']
+          = garosu_count[''in400_garosu'']                                \n        bike_count[''in400_hangang'']
+          = hangan_bike_loc_list\n        return bike_count\n\n    bike_count = df_concat_in400(new_path,now_path)\n    bike
+          = pd.concat([bike_count, bike_len_path],axis=1)\n    new = pd.merge(new_path,bike,
+          on=''\ub300\uc5ec\uc18c\ubc88\ud638'', how=\"left\")\n    jachigu = pd.read_csv(''./jachigu.csv'')\n    new_jachigu_plus
+          = pd.merge(new,jachigu,on=''\uc790\uce58\uad6c'',how=''left'')\n    new_jachigu_plus
+          = new_jachigu_plus[base_df.columns.tolist()]\n    now_final = pd.concat([base_df,new_jachigu_plus],axis=0)\n\n    if
+          len(deleted_path) != 0:\n        now_final = now_final[now_final.\ub300\uc5ec\uc18c\ubc88\ud638.isin(list(deleted_path))
+          == False]\n    now_final.\uc138\ub300\uc218 = now_final.\uc138\ub300\uc218.apply(lambda
+          x : int(x.replace('','','''')))\n    now_final.\uac70\uc8fc\uc790\ucd1d\uc778\uad6c\uc218
+          = now_final.\uac70\uc8fc\uc790\ucd1d\uc778\uad6c\uc218.apply(lambda x :
+          int(x.replace('','','''')))\n    now_final[''20s''] = now_final[''20s''].apply(lambda
+          x : int(x.replace('','','''')))\n    now_final[''30s''] = now_final[''30s''].apply(lambda
+          x : int(x.replace('','','''')))\n\n    now_final.to_csv(region_path, index
+          = False)\n\nimport argparse\n_parser = argparse.ArgumentParser(prog=''Region
+          op'', description='''')\n_parser.add_argument(\"--now\", dest=\"now_path\",
+          type=str, required=True, default=argparse.SUPPRESS)\n_parser.add_argument(\"--new\",
+          dest=\"new_path\", type=str, required=True, default=argparse.SUPPRESS)\n_parser.add_argument(\"--bike-len\",
+          dest=\"bike_len_path\", type=str, required=True, default=argparse.SUPPRESS)\n_parser.add_argument(\"--deleted-path\",
+          dest=\"deleted_path\", type=str, required=True, default=argparse.SUPPRESS)\n_parser.add_argument(\"--region\",
+          dest=\"region_path\", type=_make_parent_dirs_and_return_path, required=True,
+          default=argparse.SUPPRESS)\n_parsed_args = vars(_parser.parse_args())\n\n_outputs
+          = region_op(**_parsed_args)\n"], "image": "941102633028.dkr.ecr.ap-northeast-2.amazonaws.com/6team:es_ko_KST_XGH"}},
+          "inputs": [{"name": "now", "type": "csv"}, {"name": "new", "type": "csv"},
+          {"name": "bike_len", "type": "csv"}, {"name": "deleted_path"}], "name":
+          "Region op", "outputs": [{"name": "region", "type": "csv"}]}', pipelines.kubeflow.org/component_ref: '{}'}
+  - name: weather-op
+    container:
+      args: [--weather, /tmp/outputs/weather/data]
+      command:
+      - python3
+      - -u
+      - -c
+      - "def _make_parent_dirs_and_return_path(file_path: str):\n    import os\n \
+        \   os.makedirs(os.path.dirname(file_path), exist_ok=True)\n    return file_path\n\
+        \ndef weather_op(weather_path):\n    from datetime import datetime\n    from\
+        \ datetime import timedelta\n    from sqlalchemy import create_engine\n  \
+        \  import psycopg2\n    import pandas as pd\n\n    now = datetime.now() \n\
+        \    engine = create_engine(\"postgresql://postgres:6team123!@restored-aurora.cj92narf3bwn.ap-northeast-2.rds.amazonaws.com:5432/final_project\"\
+        )\n    def read_line(now):\n        twodaysago = now - 2 * timedelta(1)\n\
+        \        twodaysago_result = twodaysago.strftime('%Y-%m-%d %H:%M')\n     \
+        \   twodaysago_same_result = twodaysago - timedelta(hours=1)\n        twodaysago_before_hour\
+        \ = twodaysago_same_result.strftime('%Y-%m-%d %H:%M')\n\n        line = now.strftime('%M')\n\
+        \n        if line < \"50\" :\n            return twodaysago_before_hour\n\
+        \        else:\n            return twodaysago_result\n\n    result = read_line(now)\n\
+        \n    table_weather = pd.read_sql_query(f\"\"\"SELECT \uAD00\uCE21\uC77C\uC2DC\
+        , \uAD8C\uC5ED\uBA85, \uCCB4\uAC10\uC628\uB3C4, \uB0A0\uC528\n        FROM\
+        \ weather WHERE \uAD00\uCE21\uC77C\uC2DC > '{result}';\n        \"\"\", con=engine.connect())\n\
+        \n    table_weather['\uAD00\uCE21\uC77C\uC2DC'] = table_weather['\uAD00\uCE21\
+        \uC77C\uC2DC'].apply(lambda x : x.strftime('%Y-%m-%d %H:%M') + '\uB0A0\uC528\
+        ')\n    feel_like = table_weather[['\uAD00\uCE21\uC77C\uC2DC', '\uAD8C\uC5ED\
+        \uBA85', '\uCCB4\uAC10\uC628\uB3C4']]\n    how_many_column = pd.pivot_table(feel_like,\
+        \ index = '\uAD8C\uC5ED\uBA85',columns = '\uAD00\uCE21\uC77C\uC2DC', values\
+        \ = '\uCCB4\uAC10\uC628\uB3C4').reset_index()\n    wwweather = table_weather[['\uAD00\
+        \uCE21\uC77C\uC2DC', '\uAD8C\uC5ED\uBA85', '\uB0A0\uC528']]\n\n    def func(wwweather):\n\
+        \        if wwweather['\uB0A0\uC528'] == 'Clear':\n            return 1\n\
+        \        elif wwweather['\uB0A0\uC528'] == 'Clouds':\n            return 1\n\
+        \        else:\n            return 0\n    wwweather['\uB0A0\uC528'] = wwweather.apply(func,\
+        \ axis=1)\n    how_many_columns = pd.pivot_table(wwweather, index = '\uAD8C\
+        \uC5ED\uBA85',columns = '\uAD00\uCE21\uC77C\uC2DC', values = '\uB0A0\uC528\
+        ', aggfunc=lambda x: ' '.join(str(v) for v in x)).reset_index()\n\n    for\
+        \ col in how_many_columns.columns.tolist()[1:]:\n        how_many_columns[col]\
+        \ = how_many_columns[col].apply(lambda x: int(x))\n    weather_final = pd.merge(how_many_column,\
+        \ how_many_columns, on='\uAD8C\uC5ED\uBA85', how= 'left')\n    weather_final.to_csv(weather_path,\
+        \ index = False)\n\nimport argparse\n_parser = argparse.ArgumentParser(prog='Weather\
+        \ op', description='')\n_parser.add_argument(\"--weather\", dest=\"weather_path\"\
+        , type=_make_parent_dirs_and_return_path, required=True, default=argparse.SUPPRESS)\n\
+        _parsed_args = vars(_parser.parse_args())\n\n_outputs = weather_op(**_parsed_args)\n"
+      image: 941102633028.dkr.ecr.ap-northeast-2.amazonaws.com/6team:es_ko_KST_XGH
+    outputs:
+      artifacts:
+      - {name: weather-op-weather, path: /tmp/outputs/weather/data}
+    metadata:
+      annotations: {pipelines.kubeflow.org/component_spec: '{"implementation": {"container":
+          {"args": ["--weather", {"outputPath": "weather"}], "command": ["python3",
+          "-u", "-c", "def _make_parent_dirs_and_return_path(file_path: str):\n    import
+          os\n    os.makedirs(os.path.dirname(file_path), exist_ok=True)\n    return
+          file_path\n\ndef weather_op(weather_path):\n    from datetime import datetime\n    from
+          datetime import timedelta\n    from sqlalchemy import create_engine\n    import
+          psycopg2\n    import pandas as pd\n\n    now = datetime.now() \n    engine
+          = create_engine(\"postgresql://postgres:6team123!@restored-aurora.cj92narf3bwn.ap-northeast-2.rds.amazonaws.com:5432/final_project\")\n    def
+          read_line(now):\n        twodaysago = now - 2 * timedelta(1)\n        twodaysago_result
+          = twodaysago.strftime(''%Y-%m-%d %H:%M'')\n        twodaysago_same_result
+          = twodaysago - timedelta(hours=1)\n        twodaysago_before_hour = twodaysago_same_result.strftime(''%Y-%m-%d
+          %H:%M'')\n\n        line = now.strftime(''%M'')\n\n        if line < \"50\"
+          :\n            return twodaysago_before_hour\n        else:\n            return
+          twodaysago_result\n\n    result = read_line(now)\n\n    table_weather =
+          pd.read_sql_query(f\"\"\"SELECT \uad00\uce21\uc77c\uc2dc, \uad8c\uc5ed\uba85,
+          \uccb4\uac10\uc628\ub3c4, \ub0a0\uc528\n        FROM weather WHERE \uad00\uce21\uc77c\uc2dc
+          > ''{result}'';\n        \"\"\", con=engine.connect())\n\n    table_weather[''\uad00\uce21\uc77c\uc2dc'']
+          = table_weather[''\uad00\uce21\uc77c\uc2dc''].apply(lambda x : x.strftime(''%Y-%m-%d
+          %H:%M'') + ''\ub0a0\uc528'')\n    feel_like = table_weather[[''\uad00\uce21\uc77c\uc2dc'',
+          ''\uad8c\uc5ed\uba85'', ''\uccb4\uac10\uc628\ub3c4'']]\n    how_many_column
+          = pd.pivot_table(feel_like, index = ''\uad8c\uc5ed\uba85'',columns = ''\uad00\uce21\uc77c\uc2dc'',
+          values = ''\uccb4\uac10\uc628\ub3c4'').reset_index()\n    wwweather = table_weather[[''\uad00\uce21\uc77c\uc2dc'',
+          ''\uad8c\uc5ed\uba85'', ''\ub0a0\uc528'']]\n\n    def func(wwweather):\n        if
+          wwweather[''\ub0a0\uc528''] == ''Clear'':\n            return 1\n        elif
+          wwweather[''\ub0a0\uc528''] == ''Clouds'':\n            return 1\n        else:\n            return
+          0\n    wwweather[''\ub0a0\uc528''] = wwweather.apply(func, axis=1)\n    how_many_columns
+          = pd.pivot_table(wwweather, index = ''\uad8c\uc5ed\uba85'',columns = ''\uad00\uce21\uc77c\uc2dc'',
+          values = ''\ub0a0\uc528'', aggfunc=lambda x: '' ''.join(str(v) for v in
+          x)).reset_index()\n\n    for col in how_many_columns.columns.tolist()[1:]:\n        how_many_columns[col]
+          = how_many_columns[col].apply(lambda x: int(x))\n    weather_final = pd.merge(how_many_column,
+          how_many_columns, on=''\uad8c\uc5ed\uba85'', how= ''left'')\n    weather_final.to_csv(weather_path,
+          index = False)\n\nimport argparse\n_parser = argparse.ArgumentParser(prog=''Weather
+          op'', description='''')\n_parser.add_argument(\"--weather\", dest=\"weather_path\",
+          type=_make_parent_dirs_and_return_path, required=True, default=argparse.SUPPRESS)\n_parsed_args
+          = vars(_parser.parse_args())\n\n_outputs = weather_op(**_parsed_args)\n"],
+          "image": "941102633028.dkr.ecr.ap-northeast-2.amazonaws.com/6team:es_ko_KST_XGH"}},
+          "name": "Weather op", "outputs": [{"name": "weather", "type": "csv"}]}',
+        pipelines.kubeflow.org/component_ref: '{}'}
+  arguments:
+    parameters: []
+  serviceAccountName: pipeline-runner
